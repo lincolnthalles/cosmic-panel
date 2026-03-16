@@ -1,18 +1,13 @@
 use std::collections::HashSet;
 
 use crate::xdg_shell_wrapper::space::{ToplevelInfoSpace, ToplevelManagerSpace};
-use cctk::{
-    cosmic_protocols::{
-        toplevel_info::v1::client::zcosmic_toplevel_handle_v1,
-        toplevel_management::v1::client::zcosmic_toplevel_manager_v1,
-    },
-    toplevel_info::ToplevelInfo,
-    wayland_client::{Connection, protocol::wl_output::WlOutput},
-    wayland_protocols::ext::{
-        foreign_toplevel_list::v1::client::ext_foreign_toplevel_handle_v1,
-        workspace::v1::client::ext_workspace_handle_v1,
-    },
-};
+use cctk::cosmic_protocols::toplevel_info::v1::client::zcosmic_toplevel_handle_v1;
+use cctk::cosmic_protocols::toplevel_management::v1::client::zcosmic_toplevel_manager_v1;
+use cctk::toplevel_info::ToplevelInfo;
+use cctk::wayland_client::Connection;
+use cctk::wayland_client::protocol::wl_output::WlOutput;
+use cctk::wayland_protocols::ext::foreign_toplevel_list::v1::client::ext_foreign_toplevel_handle_v1;
+use cctk::wayland_protocols::ext::workspace::v1::client::ext_workspace_handle_v1;
 use cosmic_panel_config::PanelAnchor;
 use itertools::Itertools;
 use sctk::reexports::client::Proxy;

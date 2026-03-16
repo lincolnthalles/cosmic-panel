@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use sctk::{
-    compositor::CompositorHandler,
-    reexports::client::{Connection, QueueHandle, protocol::wl_surface},
-    shell::WaylandSurface,
-};
+use sctk::compositor::CompositorHandler;
+use sctk::reexports::client::protocol::wl_surface;
+use sctk::reexports::client::{Connection, QueueHandle};
+use sctk::shell::WaylandSurface;
 use smithay::reexports::wayland_server::protocol::wl_output::Transform;
 
-use crate::xdg_shell_wrapper::{shared_state::GlobalState, space::WrapperSpace};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
 
 impl CompositorHandler for GlobalState {
     fn scale_factor_changed(

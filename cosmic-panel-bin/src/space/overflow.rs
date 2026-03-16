@@ -1,31 +1,26 @@
 use anyhow::bail;
-use cctk::{
-    sctk::shell::xdg::{XdgPositioner, popup},
-    wayland_client::{QueueHandle, protocol::wl_seat::WlSeat},
-};
+use cctk::sctk::shell::xdg::{XdgPositioner, popup};
+use cctk::wayland_client::QueueHandle;
+use cctk::wayland_client::protocol::wl_seat::WlSeat;
 use cosmic::iced::id;
 
 use cosmic_panel_config::PanelAnchor;
 use sctk::shell::WaylandSurface;
-use smithay::{
-    self,
-    backend::renderer::{damage::OutputDamageTracker, gles::GlesRenderer},
-    desktop::space::SpaceElement,
-    utils::{Rectangle, Size},
-};
+use smithay::backend::renderer::damage::OutputDamageTracker;
+use smithay::backend::renderer::gles::GlesRenderer;
+use smithay::desktop::space::SpaceElement;
+use smithay::utils::{Rectangle, Size};
+use smithay::{self};
 use wayland_protocols::xdg::shell::client::xdg_positioner::{self, Anchor, Gravity};
 
-use crate::{
-    iced::elements::{CosmicMappedInternal, PopupMappedInternal},
-    xdg_shell_wrapper::{
-        shared_state::GlobalState,
-        space::{PanelPopup, WrapperPopupState},
-        wp_fractional_scaling::FractionalScalingManager,
-        wp_viewporter::ViewporterState,
-    },
-};
+use crate::iced::elements::{CosmicMappedInternal, PopupMappedInternal};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::{PanelPopup, WrapperPopupState};
+use crate::xdg_shell_wrapper::wp_fractional_scaling::FractionalScalingManager;
+use crate::xdg_shell_wrapper::wp_viewporter::ViewporterState;
 
-use super::{PanelSpace, layout::OverflowSection};
+use super::PanelSpace;
+use super::layout::OverflowSection;
 
 impl PanelSpace {
     pub fn toggle_overflow_popup(

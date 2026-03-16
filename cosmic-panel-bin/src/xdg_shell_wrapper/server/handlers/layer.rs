@@ -1,7 +1,5 @@
-use smithay::{
-    delegate_layer_shell,
-    wayland::shell::wlr_layer::{Layer, WlrLayerShellHandler},
-};
+use smithay::delegate_layer_shell;
+use smithay::wayland::shell::wlr_layer::{Layer, WlrLayerShellHandler};
 
 use crate::xdg_shell_wrapper::shared_state::GlobalState;
 

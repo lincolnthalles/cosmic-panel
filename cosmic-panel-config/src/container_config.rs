@@ -1,7 +1,6 @@
 use crate::{CosmicPanelBackground, CosmicPanelConfig, CosmicPanelOuput};
-use cosmic_config::{
-    Config, ConfigGet, ConfigSet, CosmicConfigEntry, cosmic_config_derive::CosmicConfigEntry,
-};
+use cosmic_config::cosmic_config_derive::CosmicConfigEntry;
+use cosmic_config::{Config, ConfigGet, ConfigSet, CosmicConfigEntry};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use xdg_shell_wrapper_config::{Layer, WrapperConfig, WrapperOutput};

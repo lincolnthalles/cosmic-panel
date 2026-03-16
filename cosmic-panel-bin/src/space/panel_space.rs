@@ -1,101 +1,81 @@
-use std::{
-    cell::{Cell, RefCell},
-    collections::{HashMap, HashSet},
-    fmt::Debug,
-    os::{fd::OwnedFd, unix::net::UnixStream},
-    path::PathBuf,
-    rc::Rc,
-    str::FromStr,
-    sync::{Arc, Mutex},
-    time::{Duration, Instant},
-};
+use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
+use std::os::fd::OwnedFd;
+use std::os::unix::net::UnixStream;
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::str::FromStr;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
-use crate::{
-    iced::elements::{PanelSpaceElement, PopupMappedInternal, background::BackgroundElement},
-    workspaces_dbus::CosmicWorkspaces,
-    xdg_shell_wrapper::{
-        client::handlers::overlap::OverlapNotifyV1,
-        client_state::{ClientFocus, FocusStatus},
-        server_state::{ServerFocus, ServerPtrFocus},
-        shared_state::GlobalState,
-        space::{
-            ClientEglDisplay, ClientEglSurface, PanelPopup, PanelSubsurface, SpaceEvent,
-            Visibility, WrapperPopup, WrapperSpace, WrapperSubsurface,
-        },
-        util::smootherstep,
-        wp_fractional_scaling::FractionalScalingManager,
-        wp_security_context::SecurityContextManager,
-        wp_viewporter::ViewporterState,
-    },
+use crate::iced::elements::background::BackgroundElement;
+use crate::iced::elements::{PanelSpaceElement, PopupMappedInternal};
+use crate::workspaces_dbus::CosmicWorkspaces;
+use crate::xdg_shell_wrapper::client::handlers::overlap::OverlapNotifyV1;
+use crate::xdg_shell_wrapper::client_state::{ClientFocus, FocusStatus};
+use crate::xdg_shell_wrapper::server_state::{ServerFocus, ServerPtrFocus};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::{
+    ClientEglDisplay, ClientEglSurface, PanelPopup, PanelSubsurface, SpaceEvent, Visibility,
+    WrapperPopup, WrapperSpace, WrapperSubsurface,
 };
-use cctk::{
-    cosmic_protocols::overlap_notify::v1::client::zcosmic_overlap_notification_v1::ZcosmicOverlapNotificationV1,
-    sctk::shell::wlr_layer::Layer, wayland_client::Connection,
-};
+use crate::xdg_shell_wrapper::util::smootherstep;
+use crate::xdg_shell_wrapper::wp_fractional_scaling::FractionalScalingManager;
+use crate::xdg_shell_wrapper::wp_security_context::SecurityContextManager;
+use crate::xdg_shell_wrapper::wp_viewporter::ViewporterState;
+use cctk::cosmic_protocols::overlap_notify::v1::client::zcosmic_overlap_notification_v1::ZcosmicOverlapNotificationV1;
+use cctk::sctk::shell::wlr_layer::Layer;
+use cctk::wayland_client::Connection;
 
 use cosmic::iced::id;
 use freedesktop_desktop_entry::PathSource;
 use launch_pad::process::Process;
-use sctk::{
-    compositor::Region,
-    output::OutputInfo,
-    reexports::{
-        calloop,
-        client::{
-            Proxy, QueueHandle,
-            protocol::{wl_display::WlDisplay, wl_output as c_wl_output},
-        },
-    },
-    shell::{
-        WaylandSurface,
-        wlr_layer::{LayerSurface, LayerSurfaceConfigure},
-        xdg::XdgPositioner,
-    },
-    subcompositor::SubcompositorState,
-};
-use smithay::{
-    backend::{
-        egl::{
-            EGLContext,
-            context::{GlAttributes, PixelFormatRequirements},
-            display::EGLDisplay,
-            ffi::egl::SwapInterval,
-            surface::EGLSurface,
-        },
-        renderer::{Bind, damage::OutputDamageTracker, gles::GlesRenderer},
-    },
-    desktop::{PopupManager, Space, utils::bbox_from_surface_tree},
-    output::Output,
-    reexports::{
-        wayland_protocols::xdg::shell::client::xdg_positioner::{Anchor, Gravity},
-        wayland_server::{Client, DisplayHandle, Resource, backend::ClientId},
-    },
-    utils::{Logical, Rectangle, Size},
-    wayland::{
-        compositor::with_states,
-        fractional_scale::with_fractional_scale,
-        seat::WaylandFocus,
-        shell::xdg::{PopupSurface, PositionerState, ToplevelSurface},
-    },
-};
+use sctk::compositor::Region;
+use sctk::output::OutputInfo;
+use sctk::reexports::calloop;
+use sctk::reexports::client::protocol::wl_display::WlDisplay;
+use sctk::reexports::client::protocol::wl_output as c_wl_output;
+use sctk::reexports::client::{Proxy, QueueHandle};
+use sctk::shell::WaylandSurface;
+use sctk::shell::wlr_layer::{LayerSurface, LayerSurfaceConfigure};
+use sctk::shell::xdg::XdgPositioner;
+use sctk::subcompositor::SubcompositorState;
+use smithay::backend::egl::EGLContext;
+use smithay::backend::egl::context::{GlAttributes, PixelFormatRequirements};
+use smithay::backend::egl::display::EGLDisplay;
+use smithay::backend::egl::ffi::egl::SwapInterval;
+use smithay::backend::egl::surface::EGLSurface;
+use smithay::backend::renderer::Bind;
+use smithay::backend::renderer::damage::OutputDamageTracker;
+use smithay::backend::renderer::gles::GlesRenderer;
+use smithay::desktop::utils::bbox_from_surface_tree;
+use smithay::desktop::{PopupManager, Space};
+use smithay::output::Output;
+use smithay::reexports::wayland_protocols::xdg::shell::client::xdg_positioner::{Anchor, Gravity};
+use smithay::reexports::wayland_server::backend::ClientId;
+use smithay::reexports::wayland_server::{Client, DisplayHandle, Resource};
+use smithay::utils::{Logical, Rectangle, Size};
+use smithay::wayland::compositor::with_states;
+use smithay::wayland::fractional_scale::with_fractional_scale;
+use smithay::wayland::seat::WaylandFocus;
+use smithay::wayland::shell::xdg::{PopupSurface, PositionerState, ToplevelSurface};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{error, info};
 use wayland_egl::WlEglSurface;
-use wayland_protocols::{
-    wp::{
-        fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1,
-        security_context::v1::client::wp_security_context_v1::WpSecurityContextV1,
-        viewporter::client::wp_viewport::WpViewport,
-    },
-    xdg::shell::client::xdg_positioner::ConstraintAdjustment,
-};
+use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1;
+use wayland_protocols::wp::security_context::v1::client::wp_security_context_v1::WpSecurityContextV1;
+use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
+use wayland_protocols::xdg::shell::client::xdg_positioner::ConstraintAdjustment;
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1;
 
 use cosmic_panel_config::{CosmicPanelBackground, CosmicPanelConfig, PanelAnchor};
 
-use crate::{PanelCalloopMsg, iced::elements::CosmicMappedInternal};
+use crate::PanelCalloopMsg;
+use crate::iced::elements::CosmicMappedInternal;
 
-use super::{Spacer, layout::OverflowSection};
+use super::Spacer;
+use super::layout::OverflowSection;
 
 pub enum AppletMsg {
     NewProcess(String, Process),

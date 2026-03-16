@@ -1,42 +1,31 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    time::{Duration, Instant},
-};
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::time::{Duration, Instant};
 
-use crate::{
-    iced::elements::target::SpaceTarget,
-    xdg_shell_wrapper::{
-        client::handlers::overlap::OverlapNotifyV1,
-        client_state::{ClientFocus, FocusStatus},
-        server_state::ServerPointerFocus,
-        shared_state::GlobalState,
-        space::{Visibility, WrapperSpace},
-        wp_fractional_scaling::FractionalScalingManager,
-        wp_security_context::SecurityContextManager,
-        wp_viewporter::ViewporterState,
-    },
-};
-use cctk::wayland_client::protocol::{wl_pointer::WlPointer, wl_seat::WlSeat};
+use crate::iced::elements::target::SpaceTarget;
+use crate::xdg_shell_wrapper::client::handlers::overlap::OverlapNotifyV1;
+use crate::xdg_shell_wrapper::client_state::{ClientFocus, FocusStatus};
+use crate::xdg_shell_wrapper::server_state::ServerPointerFocus;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::{Visibility, WrapperSpace};
+use crate::xdg_shell_wrapper::wp_fractional_scaling::FractionalScalingManager;
+use crate::xdg_shell_wrapper::wp_security_context::SecurityContextManager;
+use crate::xdg_shell_wrapper::wp_viewporter::ViewporterState;
+use cctk::wayland_client::protocol::wl_pointer::WlPointer;
+use cctk::wayland_client::protocol::wl_seat::WlSeat;
 use cosmic_panel_config::{CosmicPanelBackground, CosmicPanelContainerConfig, CosmicPanelOuput};
 use itertools::Itertools;
-use sctk::{
-    compositor::CompositorState,
-    output::OutputInfo,
-    reexports::client::{
-        Connection, QueueHandle,
-        protocol::{wl_output::WlOutput, wl_surface as c_wl_surface},
-    },
-    shell::{
-        WaylandSurface,
-        wlr_layer::{LayerShell, LayerSurface, LayerSurfaceConfigure},
-    },
-};
-use smithay::{
-    desktop::PopupManager,
-    output::Output,
-    reexports::wayland_server::{self, Resource, protocol::wl_surface},
-};
+use sctk::compositor::CompositorState;
+use sctk::output::OutputInfo;
+use sctk::reexports::client::protocol::wl_output::WlOutput;
+use sctk::reexports::client::protocol::wl_surface as c_wl_surface;
+use sctk::reexports::client::{Connection, QueueHandle};
+use sctk::shell::WaylandSurface;
+use sctk::shell::wlr_layer::{LayerShell, LayerSurface, LayerSurfaceConfigure};
+use smithay::desktop::PopupManager;
+use smithay::output::Output;
+use smithay::reexports::wayland_server::protocol::wl_surface;
+use smithay::reexports::wayland_server::{self, Resource};
 
 use crate::space::PanelSpace;
 

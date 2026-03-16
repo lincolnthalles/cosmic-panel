@@ -1,7 +1,5 @@
-use smithay::{
-    desktop::space::SpaceElement,
-    utils::{IsAlive, Logical},
-};
+use smithay::desktop::space::SpaceElement;
+use smithay::utils::{IsAlive, Logical};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Spacer {

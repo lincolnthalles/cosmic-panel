@@ -1,34 +1,26 @@
-use sctk::{
-    reexports::client::Proxy,
-    shell::{
-        WaylandSurface,
-        wlr_layer::{self, Anchor, KeyboardInteractivity},
-    },
-};
-use smithay::{
-    backend::{
-        egl::EGLSurface,
-        renderer::{Bind, damage::OutputDamageTracker, utils::on_commit_buffer_handler},
-    },
-    delegate_compositor, delegate_shm,
-    desktop::{LayerSurface as SmithayLayerSurface, utils::bbox_from_surface_tree},
-    reexports::wayland_server::protocol::{wl_buffer, wl_surface::WlSurface},
-    utils::Transform,
-    wayland::{
-        buffer::BufferHandler,
-        compositor::{CompositorHandler, CompositorState, get_role},
-        shell::wlr_layer::{ExclusiveZone, Layer},
-        shm::{ShmHandler, ShmState},
-    },
-};
+use sctk::reexports::client::Proxy;
+use sctk::shell::WaylandSurface;
+use sctk::shell::wlr_layer::{self, Anchor, KeyboardInteractivity};
+use smithay::backend::egl::EGLSurface;
+use smithay::backend::renderer::Bind;
+use smithay::backend::renderer::damage::OutputDamageTracker;
+use smithay::backend::renderer::utils::on_commit_buffer_handler;
+use smithay::desktop::LayerSurface as SmithayLayerSurface;
+use smithay::desktop::utils::bbox_from_surface_tree;
+use smithay::reexports::wayland_server::protocol::wl_buffer;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
+use smithay::utils::Transform;
+use smithay::wayland::buffer::BufferHandler;
+use smithay::wayland::compositor::{CompositorHandler, CompositorState, get_role};
+use smithay::wayland::shell::wlr_layer::{ExclusiveZone, Layer};
+use smithay::wayland::shm::{ShmHandler, ShmState};
+use smithay::{delegate_compositor, delegate_shm};
 use tracing::{error, info, trace};
 use wayland_egl::WlEglSurface;
 
-use crate::xdg_shell_wrapper::{
-    client_state::{SurfaceState, WrapperClientCompositorState},
-    shared_state::GlobalState,
-    space::{ClientEglSurface, WrapperSpace},
-};
+use crate::xdg_shell_wrapper::client_state::{SurfaceState, WrapperClientCompositorState};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::{ClientEglSurface, WrapperSpace};
 
 impl CompositorHandler for GlobalState {
     fn compositor_state(&mut self) -> &mut CompositorState {

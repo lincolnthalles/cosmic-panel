@@ -1,13 +1,10 @@
-use smithay::{
-    delegate_fractional_scale,
-    reexports::wayland_server::protocol::wl_surface::WlSurface,
-    wayland::{
-        compositor::with_states,
-        fractional_scale::{FractionalScaleHandler, with_fractional_scale},
-    },
-};
+use smithay::delegate_fractional_scale;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
+use smithay::wayland::compositor::with_states;
+use smithay::wayland::fractional_scale::{FractionalScaleHandler, with_fractional_scale};
 
-use crate::xdg_shell_wrapper::{shared_state::GlobalState, space::WrapperSpace};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
 
 impl FractionalScaleHandler for GlobalState {
     fn new_fractional_scale(&mut self, surface: WlSurface) {

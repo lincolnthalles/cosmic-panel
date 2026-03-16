@@ -1,30 +1,25 @@
-use smithay::{
-    desktop::PopupManager,
-    input::{Seat, SeatState},
-    reexports::wayland_server::{
-        DisplayHandle,
-        protocol::{wl_data_source::WlDataSource, wl_surface::WlSurface},
-    },
-    utils::{Logical, Point},
-    wayland::{
-        compositor::CompositorState,
-        cursor_shape::CursorShapeManagerState,
-        dmabuf::{DmabufGlobal, DmabufState},
-        fractional_scale::FractionalScaleManagerState,
-        output::OutputManagerState,
-        selection::{
-            SelectionSource, data_device::DataDeviceState, primary_selection::PrimarySelectionState,
-        },
-        shell::{wlr_layer::WlrLayerShellState, xdg::XdgShellState},
-        shm::ShmState,
-        viewporter::ViewporterState,
-    },
-};
+use smithay::desktop::PopupManager;
+use smithay::input::{Seat, SeatState};
+use smithay::reexports::wayland_server::DisplayHandle;
+use smithay::reexports::wayland_server::protocol::wl_data_source::WlDataSource;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
+use smithay::utils::{Logical, Point};
+use smithay::wayland::compositor::CompositorState;
+use smithay::wayland::cursor_shape::CursorShapeManagerState;
+use smithay::wayland::dmabuf::{DmabufGlobal, DmabufState};
+use smithay::wayland::fractional_scale::FractionalScaleManagerState;
+use smithay::wayland::output::OutputManagerState;
+use smithay::wayland::selection::SelectionSource;
+use smithay::wayland::selection::data_device::DataDeviceState;
+use smithay::wayland::selection::primary_selection::PrimarySelectionState;
+use smithay::wayland::shell::wlr_layer::WlrLayerShellState;
+use smithay::wayland::shell::xdg::XdgShellState;
+use smithay::wayland::shm::ShmState;
+use smithay::wayland::viewporter::ViewporterState;
 
-use crate::{
-    iced::elements::target::SpaceTarget,
-    xdg_shell_wrapper::{client_state::ClientSeat, shared_state::GlobalState},
-};
+use crate::iced::elements::target::SpaceTarget;
+use crate::xdg_shell_wrapper::client_state::ClientSeat;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
 
 /// list of focused surfaces and the seats that focus them
 pub type ServerFocus = Vec<(SpaceTarget, String)>;

@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use sctk::{
-    delegate_layer,
-    shell::{
-        WaylandSurface,
-        wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
-    },
-};
+use sctk::delegate_layer;
+use sctk::shell::WaylandSurface;
+use sctk::shell::wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure};
 
-use crate::xdg_shell_wrapper::{
-    client_state::SurfaceState, shared_state::GlobalState, space::WrapperSpace,
-};
+use crate::xdg_shell_wrapper::client_state::SurfaceState;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
 
 impl LayerShellHandler for GlobalState {
     fn closed(

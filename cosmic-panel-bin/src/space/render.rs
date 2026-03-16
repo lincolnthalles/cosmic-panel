@@ -1,30 +1,28 @@
-use std::{collections::HashSet, time::Duration};
+use std::collections::HashSet;
+use std::time::Duration;
 
 use crate::iced::elements::{CosmicMappedInternal, PanelSpaceElement, PopupMappedInternal};
 
-use super::{PanelSpace, layout::OverflowSection};
+use super::PanelSpace;
+use super::layout::OverflowSection;
 use cctk::wayland_client::{Proxy, QueueHandle};
 use itertools::Itertools;
 
 use crate::xdg_shell_wrapper::shared_state::GlobalState;
 use cosmic_panel_config::PanelAnchor;
 use sctk::shell::WaylandSurface;
-use smithay::{
-    backend::renderer::{
-        Bind, Color32F, Frame, Renderer,
-        damage::OutputDamageTracker,
-        element::{
-            AsRenderElements, RenderElement, UnderlyingStorage,
-            memory::MemoryRenderBufferRenderElement,
-            surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
-            utils::CropRenderElement,
-        },
-        gles::{GlesError, GlesFrame, GlesRenderer},
-    },
-    reexports::wayland_server::Resource,
-    utils::{Buffer, IsAlive, Physical, Point, Rectangle},
-    wayland::seat::WaylandFocus,
+use smithay::backend::renderer::damage::OutputDamageTracker;
+use smithay::backend::renderer::element::memory::MemoryRenderBufferRenderElement;
+use smithay::backend::renderer::element::surface::{
+    WaylandSurfaceRenderElement, render_elements_from_surface_tree,
 };
+use smithay::backend::renderer::element::utils::CropRenderElement;
+use smithay::backend::renderer::element::{AsRenderElements, RenderElement, UnderlyingStorage};
+use smithay::backend::renderer::gles::{GlesError, GlesFrame, GlesRenderer};
+use smithay::backend::renderer::{Bind, Color32F, Frame, Renderer};
+use smithay::reexports::wayland_server::Resource;
+use smithay::utils::{Buffer, IsAlive, Physical, Point, Rectangle};
+use smithay::wayland::seat::WaylandFocus;
 
 pub(crate) enum PanelRenderElement {
     Wayland(WaylandSurfaceRenderElement<GlesRenderer>),

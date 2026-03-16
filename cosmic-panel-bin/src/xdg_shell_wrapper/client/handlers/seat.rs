@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use sctk::{
-    delegate_seat,
-    reexports::client::{Connection, QueueHandle, protocol::wl_seat},
-    seat::{SeatHandler, pointer::ThemeSpec},
-};
+use sctk::delegate_seat;
+use sctk::reexports::client::protocol::wl_seat;
+use sctk::reexports::client::{Connection, QueueHandle};
+use sctk::seat::SeatHandler;
+use sctk::seat::pointer::ThemeSpec;
 
-use crate::xdg_shell_wrapper::{
-    client_state::ClientSeat,
-    server_state::{SeatPair, ServerSeat},
-    shared_state::GlobalState,
-};
+use crate::xdg_shell_wrapper::client_state::ClientSeat;
+use crate::xdg_shell_wrapper::server_state::{SeatPair, ServerSeat};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
 
 impl SeatHandler for GlobalState {
     fn seat_state(&mut self) -> &mut sctk::seat::SeatState {

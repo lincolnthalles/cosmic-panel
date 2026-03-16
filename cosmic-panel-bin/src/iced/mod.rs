@@ -1,67 +1,58 @@
 mod state;
 
-use std::{
-    borrow::Cow,
-    cell::{OnceCell, RefCell},
-    collections::{HashMap, HashSet},
-    fmt,
-    hash::{Hash, Hasher},
-    sync::{Arc, LazyLock, Mutex, mpsc::Receiver},
-    time::{Duration, Instant},
-};
+use std::borrow::Cow;
+use std::cell::{OnceCell, RefCell};
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::sync::mpsc::Receiver;
+use std::sync::{Arc, LazyLock, Mutex};
+use std::time::{Duration, Instant};
 
-use crate::{iced::state::State, xdg_shell_wrapper::shared_state::GlobalState};
-use cosmic::{
-    Theme,
-    iced::{
-        self, Limits, Point as IcedPoint, Size as IcedSize, Task,
-        advanced::widget::Tree,
-        event::Event,
-        futures::{self, FutureExt, StreamExt},
-        keyboard::{Event as KeyboardEvent, Modifiers as IcedModifiers},
-        mouse::{Button as MouseButton, Cursor, Event as MouseEvent, ScrollDelta},
-        touch::{Event as TouchEvent, Finger},
-        window::Event as WindowEvent,
-    },
-    iced_core::{Color, Font, Length, Pixels, clipboard::Null as NullClipboard, renderer::Style},
-    iced_renderer::Renderer as IcedRenderer,
-    iced_runtime::{Action, task::into_stream},
-    widget::Id,
-};
+use crate::iced::state::State;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use cosmic::Theme;
+use cosmic::iced::advanced::widget::Tree;
+use cosmic::iced::event::Event;
+use cosmic::iced::futures::{self, FutureExt, StreamExt};
+use cosmic::iced::keyboard::{Event as KeyboardEvent, Modifiers as IcedModifiers};
+use cosmic::iced::mouse::{Button as MouseButton, Cursor, Event as MouseEvent, ScrollDelta};
+use cosmic::iced::touch::{Event as TouchEvent, Finger};
+use cosmic::iced::window::Event as WindowEvent;
+use cosmic::iced::{self, Limits, Point as IcedPoint, Size as IcedSize, Task};
+use cosmic::iced_core::clipboard::Null as NullClipboard;
+use cosmic::iced_core::renderer::Style;
+use cosmic::iced_core::{Color, Font, Length, Pixels};
+use cosmic::iced_renderer::Renderer as IcedRenderer;
+use cosmic::iced_runtime::Action;
+use cosmic::iced_runtime::task::into_stream;
+use cosmic::widget::Id;
 use iced_tiny_skia::graphics::Viewport;
 use ordered_float::OrderedFloat;
-use smithay::{
-    backend::{
-        allocator::Fourcc,
-        input::{ButtonState, KeyState},
-        renderer::{
-            ImportMem, Renderer,
-            element::{
-                AsRenderElements, Kind,
-                memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
-            },
-        },
-    },
-    desktop::space::{RenderZindex, SpaceElement},
-    input::{
-        Seat,
-        keyboard::{KeyboardTarget, KeysymHandle, ModifiersState},
-        pointer::{
-            AxisFrame, ButtonEvent, GestureHoldBeginEvent, GestureHoldEndEvent,
-            GesturePinchBeginEvent, GesturePinchEndEvent, GesturePinchUpdateEvent,
-            GestureSwipeBeginEvent, GestureSwipeEndEvent, GestureSwipeUpdateEvent, MotionEvent,
-            PointerTarget, RelativeMotionEvent,
-        },
-        touch::TouchTarget,
-    },
-    output::Output,
-    reexports::calloop::{self, LoopHandle, RegistrationToken, futures::Scheduler},
-    utils::{
-        Buffer as BufferCoords, IsAlive, Logical, Physical, Point, Rectangle, Scale, Serial, Size,
-        Transform,
-    },
-    wayland::seat::WaylandFocus,
+use smithay::backend::allocator::Fourcc;
+use smithay::backend::input::{ButtonState, KeyState};
+use smithay::backend::renderer::element::memory::{
+    MemoryRenderBuffer, MemoryRenderBufferRenderElement,
 };
+use smithay::backend::renderer::element::{AsRenderElements, Kind};
+use smithay::backend::renderer::{ImportMem, Renderer};
+use smithay::desktop::space::{RenderZindex, SpaceElement};
+use smithay::input::Seat;
+use smithay::input::keyboard::{KeyboardTarget, KeysymHandle, ModifiersState};
+use smithay::input::pointer::{
+    AxisFrame, ButtonEvent, GestureHoldBeginEvent, GestureHoldEndEvent, GesturePinchBeginEvent,
+    GesturePinchEndEvent, GesturePinchUpdateEvent, GestureSwipeBeginEvent, GestureSwipeEndEvent,
+    GestureSwipeUpdateEvent, MotionEvent, PointerTarget, RelativeMotionEvent,
+};
+use smithay::input::touch::TouchTarget;
+use smithay::output::Output;
+use smithay::reexports::calloop::futures::Scheduler;
+use smithay::reexports::calloop::{self, LoopHandle, RegistrationToken};
+use smithay::utils::{
+    Buffer as BufferCoords, IsAlive, Logical, Physical, Point, Rectangle, Scale, Serial, Size,
+    Transform,
+};
+use smithay::wayland::seat::WaylandFocus;
 
 pub mod elements;
 pub mod panel_message;

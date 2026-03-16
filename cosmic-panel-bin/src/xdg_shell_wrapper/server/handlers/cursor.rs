@@ -1,4 +1,5 @@
-use smithay::{delegate_cursor_shape, wayland::tablet_manager::TabletSeatHandler};
+use smithay::delegate_cursor_shape;
+use smithay::wayland::tablet_manager::TabletSeatHandler;
 
 use crate::xdg_shell_wrapper::shared_state::GlobalState;
 

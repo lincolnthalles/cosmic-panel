@@ -1,13 +1,14 @@
-use super::{CosmicMappedInternal, PopupMappedInternal, overflow_button::OverflowButtonElement};
+use super::overflow_button::OverflowButtonElement;
+use super::{CosmicMappedInternal, PopupMappedInternal};
 use crate::xdg_shell_wrapper::shared_state::GlobalState;
 
 use anyhow::bail;
-use smithay::{
-    input::{keyboard::KeyboardTarget, pointer::PointerTarget, touch::TouchTarget},
-    reexports::wayland_server::protocol::wl_surface::WlSurface,
-    utils::IsAlive,
-    wayland::seat::WaylandFocus,
-};
+use smithay::input::keyboard::KeyboardTarget;
+use smithay::input::pointer::PointerTarget;
+use smithay::input::touch::TouchTarget;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
+use smithay::utils::IsAlive;
+use smithay::wayland::seat::WaylandFocus;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SpaceTarget {

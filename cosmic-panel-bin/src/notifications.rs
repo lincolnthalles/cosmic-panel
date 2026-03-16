@@ -1,15 +1,12 @@
 use anyhow::Result;
 use cosmic_notifications_util::PANEL_NOTIFICATIONS_FD;
-use smithay::reexports::rustix::{
-    io::{FdFlags, fcntl_getfd, fcntl_setfd},
-    {self},
-};
-use std::os::{
-    fd::{FromRawFd, RawFd},
-    unix::net::UnixStream,
-};
+use smithay::reexports::rustix::io::{FdFlags, fcntl_getfd, fcntl_setfd};
+use smithay::reexports::rustix::{self};
+use std::os::fd::{FromRawFd, RawFd};
+use std::os::unix::net::UnixStream;
 use tracing::info;
-use zbus::{connection::Builder, proxy};
+use zbus::connection::Builder;
+use zbus::proxy;
 
 #[proxy(
     default_service = "com.system76.NotificationsSocket",

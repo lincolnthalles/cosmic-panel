@@ -7,13 +7,12 @@ use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use sctk::shm::multi::MultiPool;
-use smithay::reexports::{calloop, wayland_server::Display};
+use smithay::reexports::calloop;
+use smithay::reexports::wayland_server::Display;
 
+pub use client::handlers::{wp_fractional_scaling, wp_security_context, wp_viewporter};
+pub use client::state as client_state;
 use client::state::ClientState;
-pub use client::{
-    handlers::{wp_fractional_scaling, wp_security_context, wp_viewporter},
-    state as client_state,
-};
 pub use server::state as server_state;
 use server::state::ServerState;
 use shared_state::GlobalState;

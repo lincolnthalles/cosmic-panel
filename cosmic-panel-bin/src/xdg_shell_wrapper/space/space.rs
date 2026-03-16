@@ -1,48 +1,33 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    time::{Duration, Instant},
-};
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::time::{Duration, Instant};
 
-use cctk::wayland_client::protocol::{wl_pointer::WlPointer, wl_seat::WlSeat};
-use sctk::{
-    compositor::CompositorState,
-    output::OutputInfo,
-    reexports::client::{
-        Connection, QueueHandle,
-        protocol::{wl_output as c_wl_output, wl_surface},
-    },
-    shell::{
-        wlr_layer::{LayerShell, LayerSurface, LayerSurfaceConfigure},
-        xdg::{XdgPositioner, XdgShell},
-    },
-};
-use smithay::{
-    backend::renderer::gles::GlesRenderer,
-    desktop::{PopupManager, Window},
-    output::Output,
-    reexports::wayland_server::{
-        self, DisplayHandle, protocol::wl_surface::WlSurface as s_WlSurface,
-    },
-    wayland::shell::xdg::{PopupSurface, PositionerState},
-};
+use cctk::wayland_client::protocol::wl_pointer::WlPointer;
+use cctk::wayland_client::protocol::wl_seat::WlSeat;
+use sctk::compositor::CompositorState;
+use sctk::output::OutputInfo;
+use sctk::reexports::client::protocol::{wl_output as c_wl_output, wl_surface};
+use sctk::reexports::client::{Connection, QueueHandle};
+use sctk::shell::wlr_layer::{LayerShell, LayerSurface, LayerSurfaceConfigure};
+use sctk::shell::xdg::{XdgPositioner, XdgShell};
+use smithay::backend::renderer::gles::GlesRenderer;
+use smithay::desktop::{PopupManager, Window};
+use smithay::output::Output;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface as s_WlSurface;
+use smithay::reexports::wayland_server::{self, DisplayHandle};
+use smithay::wayland::shell::xdg::{PopupSurface, PositionerState};
 
-use crate::{
-    iced::elements::target::SpaceTarget,
-    xdg_shell_wrapper::{
-        client::handlers::{
-            overlap::OverlapNotifyV1, wp_fractional_scaling::FractionalScalingManager,
-            wp_viewporter::ViewporterState,
-        },
-        client_state::ClientFocus,
-        config::WrapperConfig,
-        server_state::ServerPointerFocus,
-        shared_state::GlobalState,
-        wp_security_context::SecurityContextManager,
-    },
-};
+use crate::iced::elements::target::SpaceTarget;
+use crate::xdg_shell_wrapper::client::handlers::overlap::OverlapNotifyV1;
+use crate::xdg_shell_wrapper::client::handlers::wp_fractional_scaling::FractionalScalingManager;
+use crate::xdg_shell_wrapper::client::handlers::wp_viewporter::ViewporterState;
+use crate::xdg_shell_wrapper::client_state::ClientFocus;
+use crate::xdg_shell_wrapper::config::WrapperConfig;
+use crate::xdg_shell_wrapper::server_state::ServerPointerFocus;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::wp_security_context::SecurityContextManager;
 
 /// Space events
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]

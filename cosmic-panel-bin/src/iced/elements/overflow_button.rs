@@ -1,23 +1,18 @@
-use std::{
-    borrow::Cow,
-    hash::Hash,
-    rc::Rc,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-};
+use std::borrow::Cow;
+use std::hash::Hash;
+use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use calloop::LoopHandle;
 // element for rendering a button that toggles the overflow popup when clicked
-use crate::xdg_shell_wrapper::{self, shared_state::GlobalState};
-use cosmic::{
-    Element,
-    iced::{Length, Padding},
-    iced_core::id,
-    theme::{self, Button},
-    widget::{Id, button, layer_container},
-};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::{self};
+use cosmic::Element;
+use cosmic::iced::{Length, Padding};
+use cosmic::iced_core::id;
+use cosmic::theme::{self, Button};
+use cosmic::widget::{Id, button, layer_container};
 use smithay::utils::{Logical, Point, Size};
 
 use crate::iced::{IcedElement, Program};

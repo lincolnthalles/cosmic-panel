@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
+use sctk::output::OutputState;
+use sctk::registry::{ProvidesRegistryState, RegistryState};
+use sctk::seat::SeatState;
+use sctk::shm::{Shm, ShmHandler};
 use sctk::{
-    delegate_compositor, delegate_output, delegate_registry, delegate_shm,
-    output::OutputState,
-    registry::{ProvidesRegistryState, RegistryState},
-    registry_handlers,
-    seat::SeatState,
-    shm::{Shm, ShmHandler},
+    delegate_compositor, delegate_output, delegate_registry, delegate_shm, registry_handlers,
 };
 
 use crate::xdg_shell_wrapper::shared_state::GlobalState;

@@ -1,48 +1,41 @@
-use std::{
-    cell::{Cell, RefCell},
-    collections::HashMap,
-    rc::Rc,
-    sync::Arc,
-};
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::Arc;
 
-use crate::{
-    PanelCalloopMsg,
-    iced::elements::PanelSpaceElement,
-    minimize::MinimizeApplet,
-    space::{AppletMsg, PanelColors, PanelSharedState, PanelSpace},
-    workspaces_dbus::CosmicWorkspaces,
-    xdg_shell_wrapper::{
-        client::handlers::overlap::OverlapNotifyV1, shared_state::GlobalState, space::WrapperSpace,
-        wp_fractional_scaling::FractionalScalingManager, wp_viewporter::ViewporterState,
-    },
-};
-use cctk::{
-    toplevel_info::ToplevelInfo,
-    wayland_client::protocol::wl_seat::WlSeat,
-    workspace::{Workspace, WorkspaceGroup},
-};
-use cosmic::{cosmic_config::CosmicConfigEntry, iced::id, theme};
+use crate::PanelCalloopMsg;
+use crate::iced::elements::PanelSpaceElement;
+use crate::minimize::MinimizeApplet;
+use crate::space::{AppletMsg, PanelColors, PanelSharedState, PanelSpace};
+use crate::workspaces_dbus::CosmicWorkspaces;
+use crate::xdg_shell_wrapper::client::handlers::overlap::OverlapNotifyV1;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
+use crate::xdg_shell_wrapper::wp_fractional_scaling::FractionalScalingManager;
+use crate::xdg_shell_wrapper::wp_viewporter::ViewporterState;
+use cctk::toplevel_info::ToplevelInfo;
+use cctk::wayland_client::protocol::wl_seat::WlSeat;
+use cctk::workspace::{Workspace, WorkspaceGroup};
+use cosmic::cosmic_config::CosmicConfigEntry;
+use cosmic::iced::id;
+use cosmic::theme;
 use cosmic_panel_config::{
     CosmicPanelBackground, CosmicPanelConfig, CosmicPanelContainerConfig, CosmicPanelOuput,
     PanelAnchor,
 };
 use cosmic_theme::{Theme, ThemeMode};
 use notify::RecommendedWatcher;
-use sctk::{
-    output::OutputInfo,
-    reexports::{
-        calloop,
-        client::{Connection, QueueHandle, protocol::wl_output::WlOutput},
-    },
-    shell::wlr_layer::LayerShell,
-    subcompositor::SubcompositorState,
-};
-use smithay::{
-    backend::renderer::gles::GlesRenderer,
-    output::Output,
-    reexports::wayland_server::{self, backend::ClientId},
-    wayland::shell::xdg::ToplevelSurface,
-};
+use sctk::output::OutputInfo;
+use sctk::reexports::calloop;
+use sctk::reexports::client::protocol::wl_output::WlOutput;
+use sctk::reexports::client::{Connection, QueueHandle};
+use sctk::shell::wlr_layer::LayerShell;
+use sctk::subcompositor::SubcompositorState;
+use smithay::backend::renderer::gles::GlesRenderer;
+use smithay::output::Output;
+use smithay::reexports::wayland_server::backend::ClientId;
+use smithay::reexports::wayland_server::{self};
+use smithay::wayland::shell::xdg::ToplevelSurface;
 use tokio::sync::mpsc;
 use tracing::{error, info};
 use wayland_server::Resource;

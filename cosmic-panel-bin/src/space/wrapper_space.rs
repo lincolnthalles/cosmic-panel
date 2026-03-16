@@ -1,85 +1,71 @@
-use std::{
-    cell::{Cell, RefCell},
-    ffi::OsString,
-    fs, mem,
-    os::{fd::OwnedFd, unix::prelude::AsRawFd},
-    panic,
-    rc::Rc,
-    sync::{Arc, Mutex},
-    time::{Duration, Instant},
-};
+use std::cell::{Cell, RefCell};
+use std::ffi::OsString;
+use std::os::fd::OwnedFd;
+use std::os::unix::prelude::AsRawFd;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+use std::{fs, mem, panic};
 
-use crate::{
-    iced::elements::{PopupMappedInternal, target::SpaceTarget},
-    space::panel_space::ClientShrinkSize,
-    space_container::SpaceContainer,
-    xdg_shell_wrapper::{
-        client::handlers::overlap::{OverlapNotificationV1, OverlapNotifyV1},
-        client_state::ClientFocus,
-        server_state::ServerPointerFocus,
-        shared_state::GlobalState,
-        space::{
-            PanelPopup, SpaceEvent, Visibility, WrapperPopup, WrapperPopupState, WrapperSpace,
-        },
-        util::get_client_sock,
-        wp_fractional_scaling::FractionalScalingManager,
-        wp_security_context::{SecurityContext, SecurityContextManager},
-        wp_viewporter::ViewporterState,
-    },
+use crate::iced::elements::PopupMappedInternal;
+use crate::iced::elements::target::SpaceTarget;
+use crate::space::panel_space::ClientShrinkSize;
+use crate::space_container::SpaceContainer;
+use crate::xdg_shell_wrapper::client::handlers::overlap::{OverlapNotificationV1, OverlapNotifyV1};
+use crate::xdg_shell_wrapper::client_state::ClientFocus;
+use crate::xdg_shell_wrapper::server_state::ServerPointerFocus;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::{
+    PanelPopup, SpaceEvent, Visibility, WrapperPopup, WrapperPopupState, WrapperSpace,
 };
+use crate::xdg_shell_wrapper::util::get_client_sock;
+use crate::xdg_shell_wrapper::wp_fractional_scaling::FractionalScalingManager;
+use crate::xdg_shell_wrapper::wp_security_context::{SecurityContext, SecurityContextManager};
+use crate::xdg_shell_wrapper::wp_viewporter::ViewporterState;
 use anyhow::bail;
 use calloop::timer::Timer;
-use cctk::wayland_client::protocol::{wl_pointer::WlPointer, wl_seat};
+use cctk::wayland_client::protocol::wl_pointer::WlPointer;
+use cctk::wayland_client::protocol::wl_seat;
 use cosmic::iced::id;
 use cosmic_panel_config::{CosmicPanelConfig, CosmicPanelOuput, NAME, Side};
 use freedesktop_desktop_entry::{self, DesktopEntry, Iter};
 use itertools::izip;
 use launch_pad::process::Process;
-use sctk::{
-    compositor::{CompositorState, Region},
-    output::OutputInfo,
-    reexports::client::{
-        Connection, Proxy, QueueHandle,
-        protocol::{wl_output as c_wl_output, wl_surface as c_wl_surface},
-    },
-    seat::pointer::{BTN_LEFT, PointerEvent},
-    shell::{
-        WaylandSurface,
-        wlr_layer::{
-            KeyboardInteractivity, Layer, LayerShell, LayerSurface, LayerSurfaceConfigure,
-        },
-        xdg::popup,
-    },
+use sctk::compositor::{CompositorState, Region};
+use sctk::output::OutputInfo;
+use sctk::reexports::client::protocol::{wl_output as c_wl_output, wl_surface as c_wl_surface};
+use sctk::reexports::client::{Connection, Proxy, QueueHandle};
+use sctk::seat::pointer::{BTN_LEFT, PointerEvent};
+use sctk::shell::WaylandSurface;
+use sctk::shell::wlr_layer::{
+    KeyboardInteractivity, Layer, LayerShell, LayerSurface, LayerSurfaceConfigure,
 };
+use sctk::shell::xdg::popup;
 use shlex::Shlex;
-use smithay::{
-    backend::renderer::{damage::OutputDamageTracker, gles::GlesRenderer},
-    desktop::{PopupManager, Space, Window, space::SpaceElement, utils::bbox_from_surface_tree},
-    output::Output,
-    reexports::wayland_server::{
-        self, DisplayHandle, Resource, protocol::wl_surface::WlSurface as s_WlSurface,
-    },
-    utils::{Logical, Rectangle, Size},
-    wayland::{
-        compositor::{SurfaceAttributes, with_states},
-        fractional_scale::with_fractional_scale,
-        seat::WaylandFocus,
-        shell::xdg::{PopupSurface, PositionerState, SurfaceCachedState},
-    },
-};
+use smithay::backend::renderer::damage::OutputDamageTracker;
+use smithay::backend::renderer::gles::GlesRenderer;
+use smithay::desktop::space::SpaceElement;
+use smithay::desktop::utils::bbox_from_surface_tree;
+use smithay::desktop::{PopupManager, Space, Window};
+use smithay::output::Output;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface as s_WlSurface;
+use smithay::reexports::wayland_server::{self, DisplayHandle, Resource};
+use smithay::utils::{Logical, Rectangle, Size};
+use smithay::wayland::compositor::{SurfaceAttributes, with_states};
+use smithay::wayland::fractional_scale::with_fractional_scale;
+use smithay::wayland::seat::WaylandFocus;
+use smithay::wayland::shell::xdg::{PopupSurface, PositionerState, SurfaceCachedState};
 use tokio::sync::oneshot;
 use tracing::{error, error_span, info, info_span, trace};
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1;
 
-use crate::{
-    iced::elements::{CosmicMappedInternal, PanelSpaceElement},
-    space::{
-        AppletMsg,
-        panel_space::{AppletAutoClickAnchor, PanelClient},
-    },
-};
+use crate::iced::elements::{CosmicMappedInternal, PanelSpaceElement};
+use crate::space::AppletMsg;
+use crate::space::panel_space::{AppletAutoClickAnchor, PanelClient};
 
-use super::{PanelSpace, layout::OverflowSection, panel_space::HoverId};
+use super::PanelSpace;
+use super::layout::OverflowSection;
+use super::panel_space::HoverId;
 
 struct SpaceFocus<T> {
     target: T,

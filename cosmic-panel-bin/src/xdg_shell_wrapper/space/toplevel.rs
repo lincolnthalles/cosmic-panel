@@ -1,8 +1,7 @@
-use cctk::{
-    cosmic_protocols::toplevel_management::v1::client::zcosmic_toplevel_manager_v1,
-    toplevel_info::ToplevelInfo, wayland_client::Connection,
-    wayland_protocols::ext::foreign_toplevel_list::v1::client::ext_foreign_toplevel_handle_v1,
-};
+use cctk::cosmic_protocols::toplevel_management::v1::client::zcosmic_toplevel_manager_v1;
+use cctk::toplevel_info::ToplevelInfo;
+use cctk::wayland_client::Connection;
+use cctk::wayland_protocols::ext::foreign_toplevel_list::v1::client::ext_foreign_toplevel_handle_v1;
 use wayland_backend::protocol::WEnum;
 
 /// Handle events related to managing toplevels

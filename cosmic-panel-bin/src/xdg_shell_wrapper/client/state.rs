@@ -1,87 +1,61 @@
-use crate::{
-    space_container::SpaceContainer,
-    xdg_shell_wrapper::{
-        server_state::ServerState, shared_state::GlobalState, space::WrapperSpace,
-    },
+use crate::space_container::SpaceContainer;
+use crate::xdg_shell_wrapper::server_state::ServerState;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
+use cctk::toplevel_info::ToplevelInfoState;
+use cctk::toplevel_management::ToplevelManagerState;
+use cctk::wayland_client::protocol::wl_pointer::WlPointer;
+use cctk::workspace::WorkspaceState;
+use sctk::compositor::CompositorState;
+use sctk::data_device_manager::DataDeviceManagerState;
+use sctk::data_device_manager::data_device::DataDevice;
+use sctk::data_device_manager::data_offer::{DragOffer, SelectionOffer};
+use sctk::data_device_manager::data_source::{CopyPasteSource, DragSource};
+use sctk::output::OutputState;
+use sctk::reexports::calloop_wayland_source::WaylandSource;
+use sctk::reexports::client::globals::registry_queue_init;
+use sctk::reexports::client::protocol::wl_output::WlOutput;
+use sctk::reexports::client::protocol::wl_seat::WlSeat;
+use sctk::reexports::client::protocol::wl_surface::{self, WlSurface};
+use sctk::reexports::client::protocol::{wl_keyboard, wl_touch};
+use sctk::reexports::client::{Connection, QueueHandle};
+use sctk::registry::RegistryState;
+use sctk::seat::SeatState;
+use sctk::seat::pointer::{PointerEvent, ThemedPointer};
+use sctk::shell::wlr_layer::{LayerShell, LayerSurface};
+use sctk::shell::xdg::XdgShell;
+use sctk::shm::Shm;
+use sctk::shm::multi::MultiPool;
+use sctk::subcompositor::SubcompositorState;
+use smithay::backend::egl::EGLSurface;
+use smithay::backend::renderer::Bind;
+use smithay::backend::renderer::damage::OutputDamageTracker;
+use smithay::backend::renderer::element::AsRenderElements;
+use smithay::backend::renderer::element::surface::WaylandSurfaceRenderElement;
+use smithay::backend::renderer::gles::GlesRenderer;
+use smithay::desktop::LayerSurface as SmithayLayerSurface;
+use smithay::output::Output;
+use smithay::reexports::calloop;
+use smithay::reexports::wayland_server::backend::{
+    ClientData, ClientId, DisconnectReason, GlobalId,
 };
-use cctk::{
-    toplevel_info::ToplevelInfoState, toplevel_management::ToplevelManagerState,
-    wayland_client::protocol::wl_pointer::WlPointer, workspace::WorkspaceState,
-};
-use sctk::{
-    compositor::CompositorState,
-    data_device_manager::{
-        DataDeviceManagerState,
-        data_device::DataDevice,
-        data_offer::{DragOffer, SelectionOffer},
-        data_source::{CopyPasteSource, DragSource},
-    },
-    output::OutputState,
-    reexports::{
-        calloop_wayland_source::WaylandSource,
-        client::{
-            Connection, QueueHandle,
-            globals::registry_queue_init,
-            protocol::{
-                wl_keyboard,
-                wl_output::WlOutput,
-                wl_seat::WlSeat,
-                wl_surface::{self, WlSurface},
-                wl_touch,
-            },
-        },
-    },
-    registry::RegistryState,
-    seat::{
-        SeatState,
-        pointer::{PointerEvent, ThemedPointer},
-    },
-    shell::{
-        wlr_layer::{LayerShell, LayerSurface},
-        xdg::XdgShell,
-    },
-    shm::{Shm, multi::MultiPool},
-    subcompositor::SubcompositorState,
-};
-use smithay::{
-    backend::{
-        egl::EGLSurface,
-        renderer::{
-            Bind,
-            damage::OutputDamageTracker,
-            element::{AsRenderElements, surface::WaylandSurfaceRenderElement},
-            gles::GlesRenderer,
-        },
-    },
-    desktop::LayerSurface as SmithayLayerSurface,
-    output::Output,
-    reexports::{
-        calloop,
-        wayland_server::{
-            backend::{ClientData, ClientId, DisconnectReason, GlobalId},
-            protocol::{wl_output, wl_surface::WlSurface as SmithayWlSurface},
-        },
-    },
-    utils::{Logical, Size},
-    wayland::compositor::CompositorClientState,
-};
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    fmt::Debug,
-    rc::Rc,
-    time::{Duration, Instant},
-};
+use smithay::reexports::wayland_server::protocol::wl_output;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface as SmithayWlSurface;
+use smithay::utils::{Logical, Size};
+use smithay::wayland::compositor::CompositorClientState;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::rc::Rc;
+use std::time::{Duration, Instant};
 use tracing::error;
-use wayland_protocols::wp::{
-    fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1,
-    viewporter::client::wp_viewport::WpViewport,
-};
+use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1;
+use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
 
-use super::handlers::{
-    overlap::OverlapNotifyV1, wp_fractional_scaling::FractionalScalingManager,
-    wp_security_context::SecurityContextManager, wp_viewporter::ViewporterState,
-};
+use super::handlers::overlap::OverlapNotifyV1;
+use super::handlers::wp_fractional_scaling::FractionalScalingManager;
+use super::handlers::wp_security_context::SecurityContextManager;
+use super::handlers::wp_viewporter::ViewporterState;
 
 #[derive(Debug)]
 pub(crate) struct ClientSeat {

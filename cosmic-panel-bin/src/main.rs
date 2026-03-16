@@ -7,34 +7,32 @@ mod space_container;
 mod workspaces_dbus;
 mod xdg_shell_wrapper;
 
-use crate::{
-    iced::EVENT_LOOP_HANDLE,
-    xdg_shell_wrapper::{
-        client_state::ClientState, run, server_state::ServerState, shared_state::GlobalState,
-    },
-};
+use crate::iced::EVENT_LOOP_HANDLE;
+use crate::xdg_shell_wrapper::client_state::ClientState;
+use crate::xdg_shell_wrapper::run;
+use crate::xdg_shell_wrapper::server_state::ServerState;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
 use anyhow::Result;
 use calloop::channel::Sender;
-use cctk::{
-    wayland_client::protocol::wl_output::WlOutput,
-    wayland_protocols::ext::foreign_toplevel_list::v1::client::ext_foreign_toplevel_handle_v1,
-};
+use cctk::wayland_client::protocol::wl_output::WlOutput;
+use cctk::wayland_protocols::ext::foreign_toplevel_list::v1::client::ext_foreign_toplevel_handle_v1;
 use config_watching::{watch_config, watch_cosmic_theme};
 use cosmic_panel_config::CosmicPanelConfig;
 use launch_pad::{ProcessKey, ProcessManager};
 use minimize::MinimizeApplet;
 use notifications::notifications_conn;
-use smithay::reexports::{calloop, wayland_server::backend::ClientId};
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    mem,
-    os::fd::{AsRawFd, OwnedFd},
-    time::Duration,
-};
-use tokio::{runtime, sync::mpsc};
+use smithay::reexports::calloop;
+use smithay::reexports::wayland_server::backend::ClientId;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::mem;
+use std::os::fd::{AsRawFd, OwnedFd};
+use std::time::Duration;
+use tokio::runtime;
+use tokio::sync::mpsc;
 use tracing::{error, info, warn};
-use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::{EnvFilter, fmt};
 
 #[derive(Debug)]
 pub enum PanelCalloopMsg {

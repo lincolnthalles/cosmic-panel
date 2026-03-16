@@ -1,18 +1,13 @@
 // Element for rendering a panel background
 
 use calloop::LoopHandle;
-use cosmic::{
-    Theme,
-    iced::{Color, Length, id},
-    iced_core::Shadow,
-    theme,
-    widget::space,
-};
+use cosmic::iced::{Color, Length, id};
+use cosmic::iced_core::Shadow;
+use cosmic::widget::space;
+use cosmic::{Theme, theme};
 
-use crate::{
-    iced::{Element, IcedElement, Program},
-    xdg_shell_wrapper::shared_state::GlobalState,
-};
+use crate::iced::{Element, IcedElement, Program};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
 
 pub type BackgroundElement = IcedElement<Background>;
 

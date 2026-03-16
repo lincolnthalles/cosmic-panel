@@ -1,23 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use cctk::wayland_client::protocol::wl_surface::WlSurface;
-use sctk::{
-    compositor::Region,
-    shell::xdg::{XdgPositioner, popup::Popup},
-};
-use smithay::{
-    backend::{
-        egl::surface::EGLSurface,
-        renderer::{Bind, damage::OutputDamageTracker, gles::GlesRenderer},
-    },
-    desktop::PopupManager,
-    utils::{Logical, Rectangle, Size},
-    wayland::shell::xdg::PopupSurface,
-};
-use wayland_protocols::wp::{
-    fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1,
-    viewporter::client::wp_viewport::WpViewport,
-};
+use sctk::compositor::Region;
+use sctk::shell::xdg::XdgPositioner;
+use sctk::shell::xdg::popup::Popup;
+use smithay::backend::egl::surface::EGLSurface;
+use smithay::backend::renderer::Bind;
+use smithay::backend::renderer::damage::OutputDamageTracker;
+use smithay::backend::renderer::gles::GlesRenderer;
+use smithay::desktop::PopupManager;
+use smithay::utils::{Logical, Rectangle, Size};
+use smithay::wayland::shell::xdg::PopupSurface;
+use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1;
+use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
 
 /// Popup events
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]

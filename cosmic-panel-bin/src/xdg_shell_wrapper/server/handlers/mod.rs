@@ -1,49 +1,43 @@
 use smithay::wayland::viewporter::ViewportCachedState;
-use std::{os::fd::OwnedFd, sync::Mutex};
+use std::os::fd::OwnedFd;
+use std::sync::Mutex;
 
 use itertools::Itertools;
-use sctk::{
-    data_device_manager::data_offer::receive_to_fd, delegate_subcompositor,
-    reexports::client::protocol::wl_data_device_manager::DndAction as ClientDndAction,
-    shm::multi::MultiPool,
+use sctk::data_device_manager::data_offer::receive_to_fd;
+use sctk::delegate_subcompositor;
+use sctk::reexports::client::protocol::wl_data_device_manager::DndAction as ClientDndAction;
+use sctk::shm::multi::MultiPool;
+use smithay::backend::renderer::ImportDma;
+use smithay::backend::renderer::damage::OutputDamageTracker;
+use smithay::input::pointer::CursorImageAttributes;
+use smithay::input::{Seat, SeatHandler, SeatState};
+use smithay::reexports::wayland_server::Resource;
+use smithay::reexports::wayland_server::protocol::wl_data_device_manager::DndAction;
+use smithay::reexports::wayland_server::protocol::wl_data_source::WlDataSource;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
+use smithay::utils::Transform;
+use smithay::wayland::compositor::{SurfaceAttributes, with_states};
+use smithay::wayland::dmabuf::{DmabufHandler, ImportNotifier};
+use smithay::wayland::output::OutputHandler;
+use smithay::wayland::seat::WaylandFocus;
+use smithay::wayland::selection::data_device::{
+    ClientDndGrabHandler, DataDeviceHandler, ServerDndGrabHandler, set_data_device_focus,
+    with_source_metadata,
 };
+use smithay::wayland::selection::primary_selection::{
+    PrimarySelectionHandler, PrimarySelectionState, set_primary_focus,
+};
+use smithay::wayland::selection::{SelectionHandler, SelectionSource, SelectionTarget};
 use smithay::{
-    backend::renderer::{ImportDma, damage::OutputDamageTracker},
     delegate_data_device, delegate_dmabuf, delegate_output, delegate_primary_selection,
     delegate_seat,
-    input::{Seat, SeatHandler, SeatState, pointer::CursorImageAttributes},
-    reexports::wayland_server::{
-        Resource,
-        protocol::{
-            wl_data_device_manager::DndAction, wl_data_source::WlDataSource, wl_surface::WlSurface,
-        },
-    },
-    utils::Transform,
-    wayland::{
-        compositor::{SurfaceAttributes, with_states},
-        dmabuf::{DmabufHandler, ImportNotifier},
-        output::OutputHandler,
-        seat::WaylandFocus,
-        selection::{
-            SelectionHandler, SelectionSource, SelectionTarget,
-            data_device::{
-                ClientDndGrabHandler, DataDeviceHandler, ServerDndGrabHandler,
-                set_data_device_focus, with_source_metadata,
-            },
-            primary_selection::{
-                PrimarySelectionHandler, PrimarySelectionState, set_primary_focus,
-            },
-        },
-    },
 };
 use tracing::{error, info, trace};
 
-use crate::{
-    iced::elements::target::SpaceTarget,
-    xdg_shell_wrapper::{
-        shared_state::GlobalState, space::WrapperSpace, util::write_and_attach_buffer,
-    },
-};
+use crate::iced::elements::target::SpaceTarget;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
+use crate::xdg_shell_wrapper::util::write_and_attach_buffer;
 
 pub(crate) mod compositor;
 pub(crate) mod cursor;

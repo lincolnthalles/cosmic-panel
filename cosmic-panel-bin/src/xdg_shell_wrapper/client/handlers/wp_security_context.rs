@@ -1,27 +1,18 @@
-use std::{
-    os::{
-        linux::net::SocketAddrExt,
-        unix::{
-            io::AsFd,
-            net::{SocketAddr, UnixListener, UnixStream},
-        },
-    },
-    sync::{Arc, Mutex},
-};
+use std::os::linux::net::SocketAddrExt;
+use std::os::unix::io::AsFd;
+use std::os::unix::net::{SocketAddr, UnixListener, UnixStream};
+use std::sync::{Arc, Mutex};
 
-use cctk::wayland_client::{
-    Dispatch, Proxy, QueueHandle, delegate_dispatch,
-    globals::{BindError, GlobalList},
-};
+use cctk::wayland_client::globals::{BindError, GlobalList};
+use cctk::wayland_client::{Dispatch, Proxy, QueueHandle, delegate_dispatch};
 use rand::distr::{Alphanumeric, SampleString};
 use sctk::globals::GlobalData;
 
-use wayland_protocols::wp::security_context::v1::client::{
-    wp_security_context_manager_v1::WpSecurityContextManagerV1,
-    wp_security_context_v1::WpSecurityContextV1,
-};
+use wayland_protocols::wp::security_context::v1::client::wp_security_context_manager_v1::WpSecurityContextManagerV1;
+use wayland_protocols::wp::security_context::v1::client::wp_security_context_v1::WpSecurityContextV1;
 
-use crate::xdg_shell_wrapper::{shared_state::GlobalState, space::WrapperSpace};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
 
 #[derive(Debug, Clone)]
 pub struct SecurityContextManager {

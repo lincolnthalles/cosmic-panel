@@ -1,23 +1,17 @@
 use std::time::Instant;
 
-use crate::xdg_shell_wrapper::{
-    client_state::FocusStatus,
-    server_state::{SeatPair, ServerPointerFocus},
-    shared_state::GlobalState,
-    space::WrapperSpace,
-};
-use sctk::{
-    delegate_pointer,
-    seat::pointer::{PointerEvent, PointerHandler},
-    shell::WaylandSurface,
-};
-use smithay::{
-    backend::input::{self, Axis, ButtonState},
-    input::pointer::{AxisFrame, ButtonEvent, MotionEvent},
-    reexports::wayland_server::protocol::wl_pointer::AxisSource,
-    utils::{Point, SERIAL_COUNTER},
-    wayland::seat::WaylandFocus,
-};
+use crate::xdg_shell_wrapper::client_state::FocusStatus;
+use crate::xdg_shell_wrapper::server_state::{SeatPair, ServerPointerFocus};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
+use sctk::delegate_pointer;
+use sctk::seat::pointer::{PointerEvent, PointerHandler};
+use sctk::shell::WaylandSurface;
+use smithay::backend::input::{self, Axis, ButtonState};
+use smithay::input::pointer::{AxisFrame, ButtonEvent, MotionEvent};
+use smithay::reexports::wayland_server::protocol::wl_pointer::AxisSource;
+use smithay::utils::{Point, SERIAL_COUNTER};
+use smithay::wayland::seat::WaylandFocus;
 
 impl PointerHandler for GlobalState {
     fn pointer_frame(

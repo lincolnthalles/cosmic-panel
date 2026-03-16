@@ -1,24 +1,17 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use std::{
-    io::{BufWriter, Write},
-    os::unix::net::UnixStream,
-    sync::Arc,
-};
+use std::io::{BufWriter, Write};
+use std::os::unix::net::UnixStream;
+use std::sync::Arc;
 
 use anyhow::{Result, bail};
-use sctk::{
-    reexports::client::protocol::{wl_shm, wl_surface::WlSurface},
-    shm::multi::MultiPool,
-};
-use smithay::{
-    backend::renderer::{BufferType, buffer_type},
-    reexports::wayland_server::{self, Client},
-    wayland::{
-        compositor::BufferAssignment,
-        shm::{BufferData, with_buffer_contents},
-    },
-};
+use sctk::reexports::client::protocol::wl_shm;
+use sctk::reexports::client::protocol::wl_surface::WlSurface;
+use sctk::shm::multi::MultiPool;
+use smithay::backend::renderer::{BufferType, buffer_type};
+use smithay::reexports::wayland_server::{self, Client};
+use smithay::wayland::compositor::BufferAssignment;
+use smithay::wayland::shm::{BufferData, with_buffer_contents};
 
 use crate::xdg_shell_wrapper::client_state::WrapperClientCompositorState;
 

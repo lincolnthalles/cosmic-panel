@@ -1,25 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use std::{
-    ffi::{c_int, c_void},
-    sync::Arc,
-};
+use std::ffi::{c_int, c_void};
+use std::sync::Arc;
 
 use anyhow::Result;
-use sctk::reexports::client::{
-    Proxy,
-    protocol::{wl_display::WlDisplay, wl_surface::WlSurface},
-};
-use smithay::{
-    backend::egl::{
-        EGLError,
-        display::EGLDisplayHandle,
-        ffi,
-        native::{EGLNativeDisplay, EGLNativeSurface, EGLPlatform},
-        wrap_egl_call_ptr,
-    },
-    egl_platform,
-};
+use sctk::reexports::client::Proxy;
+use sctk::reexports::client::protocol::wl_display::WlDisplay;
+use sctk::reexports::client::protocol::wl_surface::WlSurface;
+use smithay::backend::egl::display::EGLDisplayHandle;
+use smithay::backend::egl::native::{EGLNativeDisplay, EGLNativeSurface, EGLPlatform};
+use smithay::backend::egl::{EGLError, ffi, wrap_egl_call_ptr};
+use smithay::egl_platform;
 
 /// Client Egl surface
 #[derive(Debug)]

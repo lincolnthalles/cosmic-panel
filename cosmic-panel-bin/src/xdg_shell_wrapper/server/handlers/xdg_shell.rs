@@ -1,23 +1,18 @@
 use itertools::Itertools;
 use sctk::shell::xdg::XdgPositioner;
-use smithay::{
-    delegate_xdg_shell,
-    desktop::{PopupKind, Window},
-    reexports::{
-        wayland_protocols::xdg::shell::server::xdg_toplevel, wayland_server::protocol::wl_seat,
-    },
-    utils::{SERIAL_COUNTER, Serial},
-    wayland::shell::xdg::{
-        PopupSurface, PositionerState, ToplevelSurface, XdgShellHandler, XdgShellState,
-    },
+use smithay::delegate_xdg_shell;
+use smithay::desktop::{PopupKind, Window};
+use smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel;
+use smithay::reexports::wayland_server::protocol::wl_seat;
+use smithay::utils::{SERIAL_COUNTER, Serial};
+use smithay::wayland::shell::xdg::{
+    PopupSurface, PositionerState, ToplevelSurface, XdgShellHandler, XdgShellState,
 };
 
-use crate::{
-    iced::elements::target::SpaceTarget,
-    xdg_shell_wrapper::{
-        client_state::FocusStatus, shared_state::GlobalState, space::WrapperSpace,
-    },
-};
+use crate::iced::elements::target::SpaceTarget;
+use crate::xdg_shell_wrapper::client_state::FocusStatus;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
 
 impl XdgShellHandler for GlobalState {
     fn xdg_shell_state(&mut self) -> &mut XdgShellState {

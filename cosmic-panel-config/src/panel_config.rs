@@ -1,9 +1,13 @@
 //! Config for cosmic-panel
 
-use std::{fmt::Display, ops::Range, str::FromStr, time::Duration};
+use std::fmt::Display;
+use std::ops::Range;
+use std::str::FromStr;
+use std::time::Duration;
 
 use anyhow::bail;
-use cosmic_config::{Config, CosmicConfigEntry, cosmic_config_derive::CosmicConfigEntry};
+use cosmic_config::cosmic_config_derive::CosmicConfigEntry;
+use cosmic_config::{Config, CosmicConfigEntry};
 use sctk::shell::wlr_layer::Anchor;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "wayland-rs")]

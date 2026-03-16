@@ -1,7 +1,5 @@
-use sctk::{
-    data_device_manager::data_offer::DataOfferHandler,
-    reexports::client::protocol::wl_data_device_manager::DndAction,
-};
+use sctk::data_device_manager::data_offer::DataOfferHandler;
+use sctk::reexports::client::protocol::wl_data_device_manager::DndAction;
 
 use crate::xdg_shell_wrapper::shared_state::GlobalState;
 

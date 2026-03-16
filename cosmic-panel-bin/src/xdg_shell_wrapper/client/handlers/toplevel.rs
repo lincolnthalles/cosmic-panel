@@ -1,16 +1,12 @@
-use cctk::{
-    cosmic_protocols::toplevel_management::v1::client::zcosmic_toplevel_manager_v1,
-    toplevel_info::{ToplevelInfoHandler, ToplevelInfoState},
-    toplevel_management::ToplevelManagerHandler,
-    wayland_client::{self, WEnum},
-    wayland_protocols::ext::foreign_toplevel_list::v1::client::ext_foreign_toplevel_handle_v1,
-};
+use cctk::cosmic_protocols::toplevel_management::v1::client::zcosmic_toplevel_manager_v1;
+use cctk::toplevel_info::{ToplevelInfoHandler, ToplevelInfoState};
+use cctk::toplevel_management::ToplevelManagerHandler;
+use cctk::wayland_client::{self, WEnum};
+use cctk::wayland_protocols::ext::foreign_toplevel_list::v1::client::ext_foreign_toplevel_handle_v1;
 use wayland_client::{Connection, QueueHandle};
 
-use crate::xdg_shell_wrapper::{
-    shared_state::GlobalState,
-    space::{ToplevelInfoSpace, ToplevelManagerSpace},
-};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::{ToplevelInfoSpace, ToplevelManagerSpace};
 
 impl ToplevelManagerHandler for GlobalState {
     fn toplevel_manager_state(&mut self) -> &mut cctk::toplevel_management::ToplevelManagerState {

@@ -10,11 +10,11 @@ use crate::space::Spacer;
 use background::BackgroundElement;
 use overflow_button::OverflowButtonElement;
 use overflow_popup::OverflowPopupElement;
-use smithay::{
-    desktop::{Window, space::SpaceElement},
-    space_elements,
-    wayland::{seat::WaylandFocus, shell::xdg::ToplevelSurface},
-};
+use smithay::desktop::Window;
+use smithay::desktop::space::SpaceElement;
+use smithay::space_elements;
+use smithay::wayland::seat::WaylandFocus;
+use smithay::wayland::shell::xdg::ToplevelSurface;
 
 pub trait PanelSpaceElement
 where

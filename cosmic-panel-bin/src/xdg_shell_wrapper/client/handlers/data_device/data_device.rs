@@ -1,35 +1,25 @@
 use std::time::Instant;
 
 use cctk::wayland_client::protocol::wl_surface::WlSurface;
-use sctk::{
-    data_device_manager::{
-        data_device::{DataDeviceData, DataDeviceHandler},
-        data_offer::DataOfferData,
-    },
-    reexports::client::{
-        Proxy,
-        protocol::{
-            wl_data_device::WlDataDevice, wl_data_device_manager::DndAction as ClientDndAction,
-        },
-    },
-    seat::pointer::{PointerEvent, PointerEventKind, PointerHandler},
-};
-use smithay::{
-    input::pointer::GrabStartData,
-    reexports::wayland_server::{Resource, protocol::wl_data_device_manager::DndAction},
-    utils::SERIAL_COUNTER,
-    wayland::{
-        seat::WaylandFocus,
-        selection::data_device::{
-            SourceMetadata, set_data_device_focus, set_data_device_selection, start_dnd,
-        },
-    },
+use sctk::data_device_manager::data_device::{DataDeviceData, DataDeviceHandler};
+use sctk::data_device_manager::data_offer::DataOfferData;
+use sctk::reexports::client::Proxy;
+use sctk::reexports::client::protocol::wl_data_device::WlDataDevice;
+use sctk::reexports::client::protocol::wl_data_device_manager::DndAction as ClientDndAction;
+use sctk::seat::pointer::{PointerEvent, PointerEventKind, PointerHandler};
+use smithay::input::pointer::GrabStartData;
+use smithay::reexports::wayland_server::Resource;
+use smithay::reexports::wayland_server::protocol::wl_data_device_manager::DndAction;
+use smithay::utils::SERIAL_COUNTER;
+use smithay::wayland::seat::WaylandFocus;
+use smithay::wayland::selection::data_device::{
+    SourceMetadata, set_data_device_focus, set_data_device_selection, start_dnd,
 };
 
-use crate::xdg_shell_wrapper::{
-    client_state::FocusStatus, server_state::ServerPointerFocus, shared_state::GlobalState,
-    space::WrapperSpace,
-};
+use crate::xdg_shell_wrapper::client_state::FocusStatus;
+use crate::xdg_shell_wrapper::server_state::ServerPointerFocus;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
 
 impl DataDeviceHandler for GlobalState {
     fn selection(

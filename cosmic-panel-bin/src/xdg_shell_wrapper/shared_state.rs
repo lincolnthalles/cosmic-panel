@@ -4,33 +4,28 @@ use std::time::Duration;
 
 use cctk::wayland_client::Proxy;
 use itertools::Itertools;
-use sctk::{reexports::client::protocol::wl_surface::WlSurface, shell::WaylandSurface};
-use smithay::{
-    backend::{
-        input::KeyState,
-        renderer::{
-            Bind, ImportDma, ImportEgl,
-            damage::OutputDamageTracker,
-            element::surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
-            gles::GlesRenderer,
-        },
-    },
-    desktop::utils::send_frames_surface_tree,
-    input::keyboard::FilterResult,
-    reexports::wayland_server::DisplayHandle,
-    utils::SERIAL_COUNTER,
-    wayland::{
-        compositor::with_states, dmabuf::DmabufState, fractional_scale::with_fractional_scale,
-    },
+use sctk::reexports::client::protocol::wl_surface::WlSurface;
+use sctk::shell::WaylandSurface;
+use smithay::backend::input::KeyState;
+use smithay::backend::renderer::damage::OutputDamageTracker;
+use smithay::backend::renderer::element::surface::{
+    WaylandSurfaceRenderElement, render_elements_from_surface_tree,
 };
+use smithay::backend::renderer::gles::GlesRenderer;
+use smithay::backend::renderer::{Bind, ImportDma, ImportEgl};
+use smithay::desktop::utils::send_frames_surface_tree;
+use smithay::input::keyboard::FilterResult;
+use smithay::reexports::wayland_server::DisplayHandle;
+use smithay::utils::SERIAL_COUNTER;
+use smithay::wayland::compositor::with_states;
+use smithay::wayland::dmabuf::DmabufState;
+use smithay::wayland::fractional_scale::with_fractional_scale;
 use tracing::{error, info};
 
-use crate::{
-    space_container::SpaceContainer,
-    xdg_shell_wrapper::{
-        client_state::ClientState, server_state::ServerState, space::WrapperSpace,
-    },
-};
+use crate::space_container::SpaceContainer;
+use crate::xdg_shell_wrapper::client_state::ClientState;
+use crate::xdg_shell_wrapper::server_state::ServerState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
 
 /// the  global state for the embedded server state
 #[allow(missing_debug_implementations)]

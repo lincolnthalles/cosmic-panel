@@ -1,15 +1,11 @@
-use cctk::wayland_client::protocol::{
-    wl_subsurface::WlSubsurface as c_WlSubsurface, wl_surface::WlSurface as c_WlSurface,
-};
-use smithay::{
-    backend::{egl::EGLSurface, renderer::damage::OutputDamageTracker},
-    reexports::wayland_server::protocol::wl_surface::WlSurface,
-    utils::{IsAlive, Logical, Point, Rectangle},
-};
-use wayland_protocols::wp::{
-    fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1,
-    viewporter::client::wp_viewport::WpViewport,
-};
+use cctk::wayland_client::protocol::wl_subsurface::WlSubsurface as c_WlSubsurface;
+use cctk::wayland_client::protocol::wl_surface::WlSurface as c_WlSurface;
+use smithay::backend::egl::EGLSurface;
+use smithay::backend::renderer::damage::OutputDamageTracker;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
+use smithay::utils::{IsAlive, Logical, Point, Rectangle};
+use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1;
+use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
 
 use crate::iced::elements::CosmicMappedInternal;
 

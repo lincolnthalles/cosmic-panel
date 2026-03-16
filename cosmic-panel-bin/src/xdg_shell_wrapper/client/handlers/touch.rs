@@ -1,20 +1,13 @@
-use crate::xdg_shell_wrapper::{
-    server_state::{SeatPair, ServerPointerFocus},
-    shared_state::GlobalState,
-    space::WrapperSpace,
-};
-use sctk::{
-    delegate_touch,
-    reexports::client::{
-        Connection, QueueHandle,
-        protocol::{wl_surface::WlSurface, wl_touch::WlTouch},
-    },
-    seat::touch::TouchHandler,
-};
-use smithay::{
-    input::touch::{self, TouchHandle},
-    utils::{Point, SERIAL_COUNTER},
-};
+use crate::xdg_shell_wrapper::server_state::{SeatPair, ServerPointerFocus};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
+use sctk::delegate_touch;
+use sctk::reexports::client::protocol::wl_surface::WlSurface;
+use sctk::reexports::client::protocol::wl_touch::WlTouch;
+use sctk::reexports::client::{Connection, QueueHandle};
+use sctk::seat::touch::TouchHandler;
+use smithay::input::touch::{self, TouchHandle};
+use smithay::utils::{Point, SERIAL_COUNTER};
 
 fn get_touch_handle(state: &GlobalState, touch: &WlTouch) -> (String, TouchHandle<GlobalState>) {
     let seat_index = state

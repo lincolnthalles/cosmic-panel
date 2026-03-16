@@ -1,13 +1,10 @@
 //! Handling of the wp-viewporter.
 
-use sctk::reexports::{
-    client::{
-        Connection, Dispatch, Proxy, QueueHandle, delegate_dispatch,
-        globals::{BindError, GlobalList},
-        protocol::wl_surface::WlSurface,
-    },
-    protocols::wp::viewporter::client::{wp_viewport::WpViewport, wp_viewporter::WpViewporter},
-};
+use sctk::reexports::client::globals::{BindError, GlobalList};
+use sctk::reexports::client::protocol::wl_surface::WlSurface;
+use sctk::reexports::client::{Connection, Dispatch, Proxy, QueueHandle, delegate_dispatch};
+use sctk::reexports::protocols::wp::viewporter::client::wp_viewport::WpViewport;
+use sctk::reexports::protocols::wp::viewporter::client::wp_viewporter::WpViewporter;
 
 use sctk::globals::GlobalData;
 

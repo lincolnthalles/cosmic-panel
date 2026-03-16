@@ -1,18 +1,13 @@
 // popup for rendering overflow items in their own space
 
 use calloop::LoopHandle;
-use cosmic::{
-    Theme,
-    iced::{Color, Length, id},
-    iced_core::Shadow,
-    theme,
-    widget::{container, space},
-};
+use cosmic::iced::{Color, Length, id};
+use cosmic::iced_core::Shadow;
+use cosmic::widget::{container, space};
+use cosmic::{Theme, theme};
 
-use crate::{
-    iced::{Element, IcedElement, Program},
-    xdg_shell_wrapper::shared_state::GlobalState,
-};
+use crate::iced::{Element, IcedElement, Program};
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
 
 pub const BORDER_WIDTH: u32 = 1;
 

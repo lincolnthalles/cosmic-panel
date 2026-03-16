@@ -2,10 +2,8 @@ use std::collections::HashMap;
 
 use crate::xdg_shell_wrapper::shared_state::GlobalState;
 use anyhow::anyhow;
-use cosmic::{
-    cosmic_config::{ConfigGet, CosmicConfigEntry},
-    theme,
-};
+use cosmic::cosmic_config::{ConfigGet, CosmicConfigEntry};
+use cosmic::theme;
 use cosmic_panel_config::{CosmicPanelConfig, CosmicPanelContainerConfig};
 use cosmic_theme::{Theme, ThemeMode};
 use notify::RecommendedWatcher;

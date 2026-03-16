@@ -1,11 +1,10 @@
 use crate::xdg_shell_wrapper::space::{ClientEglSurface, PanelPopup, WrapperPopupState};
 use cctk::wayland_client::Proxy;
 use sctk::shell::xdg::popup::{self};
-use smithay::{
-    backend::{egl::EGLSurface, renderer::gles::GlesRenderer},
-    utils::Rectangle,
-    wayland::seat::WaylandFocus,
-};
+use smithay::backend::egl::EGLSurface;
+use smithay::backend::renderer::gles::GlesRenderer;
+use smithay::utils::Rectangle;
+use smithay::wayland::seat::WaylandFocus;
 use wayland_egl::WlEglSurface;
 
 use super::PanelSpace;

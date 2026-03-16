@@ -1,24 +1,20 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use sctk::{
-    output::{Mode as c_Mode, OutputHandler, OutputInfo, OutputState},
-    reexports::client::{
-        Connection, QueueHandle,
-        protocol::{wl_output, wl_output::Subpixel as c_Subpixel},
-    },
-};
-use smithay::{
-    output::{Mode as s_Mode, Output, PhysicalProperties, Scale, Subpixel as s_Subpixel},
-    reexports::wayland_server::{DisplayHandle, backend::GlobalId},
-    utils::Transform,
-};
+use sctk::output::{Mode as c_Mode, OutputHandler, OutputInfo, OutputState};
+use sctk::reexports::client::protocol::wl_output;
+use sctk::reexports::client::protocol::wl_output::Subpixel as c_Subpixel;
+use sctk::reexports::client::{Connection, QueueHandle};
+use smithay::output::{Mode as s_Mode, Output, PhysicalProperties, Scale, Subpixel as s_Subpixel};
+use smithay::reexports::wayland_server::DisplayHandle;
+use smithay::reexports::wayland_server::backend::GlobalId;
+use smithay::utils::Transform;
 use tracing::{error, info, warn};
 use xdg_shell_wrapper_config::WrapperConfig;
 
-use crate::xdg_shell_wrapper::{
-    client_state::ClientState, server_state::ServerState, shared_state::GlobalState,
-    space::WrapperSpace,
-};
+use crate::xdg_shell_wrapper::client_state::ClientState;
+use crate::xdg_shell_wrapper::server_state::ServerState;
+use crate::xdg_shell_wrapper::shared_state::GlobalState;
+use crate::xdg_shell_wrapper::space::WrapperSpace;
 
 impl OutputHandler for GlobalState {
     fn output_state(&mut self) -> &mut OutputState {

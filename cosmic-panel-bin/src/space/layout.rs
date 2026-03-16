@@ -1,45 +1,35 @@
-use std::{
-    slice::IterMut,
-    sync::{Arc, Mutex, MutexGuard, atomic::AtomicBool},
-    time::{Duration, Instant},
-};
+use std::slice::IterMut;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
-use crate::{
-    iced::{
-        IcedElement,
-        elements::{
-            CosmicMappedInternal, PanelSpaceElement, PopupMappedInternal,
-            background::background_element,
-            overflow_button::{
-                self, OverflowButton, OverflowButtonElement, overflow_button_element,
-            },
-            overflow_popup::{BORDER_WIDTH, overflow_popup_element},
-            target::SpaceTarget,
-        },
-    },
-    minimize::MinimizeApplet,
-    space::Alignment,
-    xdg_shell_wrapper::space::Visibility,
+use crate::iced::IcedElement;
+use crate::iced::elements::background::background_element;
+use crate::iced::elements::overflow_button::{
+    self, OverflowButton, OverflowButtonElement, overflow_button_element,
 };
+use crate::iced::elements::overflow_popup::{BORDER_WIDTH, overflow_popup_element};
+use crate::iced::elements::target::SpaceTarget;
+use crate::iced::elements::{CosmicMappedInternal, PanelSpaceElement, PopupMappedInternal};
+use crate::minimize::MinimizeApplet;
+use crate::space::Alignment;
+use crate::xdg_shell_wrapper::space::Visibility;
 
-use super::{
-    PanelSpace,
-    panel_space::{ClientShrinkSize, PanelClient},
-};
+use super::PanelSpace;
+use super::panel_space::{ClientShrinkSize, PanelClient};
 use crate::xdg_shell_wrapper::space::WrapperSpace;
 use anyhow::bail;
 use cosmic::widget::Id;
 use cosmic_panel_config::PanelAnchor;
 use itertools::{Itertools, chain};
 use sctk::shell::WaylandSurface;
-use smithay::{
-    desktop::{Space, Window, space::SpaceElement},
-    reexports::wayland_server::Resource,
-    utils::{IsAlive, Physical, Rectangle, Size},
-    wayland::{
-        compositor::with_states, fractional_scale::with_fractional_scale, seat::WaylandFocus,
-    },
-};
+use smithay::desktop::space::SpaceElement;
+use smithay::desktop::{Space, Window};
+use smithay::reexports::wayland_server::Resource;
+use smithay::utils::{IsAlive, Physical, Rectangle, Size};
+use smithay::wayland::compositor::with_states;
+use smithay::wayland::fractional_scale::with_fractional_scale;
+use smithay::wayland::seat::WaylandFocus;
 use tracing::info;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
