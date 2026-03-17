@@ -58,7 +58,7 @@ pub struct ServerState {
     pub(crate) _output_manager_state: OutputManagerState,
     pub(crate) seat_state: SeatState<GlobalState>,
     pub(crate) data_device_state: DataDeviceState,
-    pub(crate) dmabuf_state: Option<(DmabufState, DmabufGlobal)>,
+    pub(crate) dmabuf_state: (DmabufState, Option<DmabufGlobal>),
     pub(crate) primary_selection_state: PrimarySelectionState,
     pub(crate) layer_shell_state: WlrLayerShellState,
     pub(crate) _fractional_scale_state: FractionalScaleManagerState,
@@ -85,7 +85,7 @@ impl ServerState {
             _fractional_scale_state: FractionalScaleManagerState::new::<GlobalState>(&dh),
             _viewporter_state: ViewporterState::new::<GlobalState>(&dh),
 
-            dmabuf_state: None,
+            dmabuf_state: (DmabufState::new(), None),
         }
     }
 }

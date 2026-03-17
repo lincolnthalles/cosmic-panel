@@ -4,28 +4,31 @@ use std::time::Duration;
 
 use cctk::wayland_client::Proxy;
 use itertools::Itertools;
-use sctk::reexports::client::protocol::wl_surface::WlSurface;
-use sctk::shell::WaylandSurface;
-use smithay::backend::input::KeyState;
-use smithay::backend::renderer::damage::OutputDamageTracker;
-use smithay::backend::renderer::element::surface::{
-    WaylandSurfaceRenderElement, render_elements_from_surface_tree,
+use sctk::{reexports::client::protocol::wl_surface::WlSurface, shell::WaylandSurface};
+use smithay::{
+    backend::{
+        input::KeyState,
+        renderer::{
+            Bind, ImportDma, ImportEgl,
+            damage::OutputDamageTracker,
+            element::surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
+            gles::GlesRenderer,
+        },
+    },
+    desktop::utils::send_frames_surface_tree,
+    input::keyboard::FilterResult,
+    reexports::wayland_server::DisplayHandle,
+    utils::SERIAL_COUNTER,
+    wayland::{compositor::with_states, fractional_scale::with_fractional_scale},
 };
-use smithay::backend::renderer::gles::GlesRenderer;
-use smithay::backend::renderer::{Bind, ImportDma, ImportEgl};
-use smithay::desktop::utils::send_frames_surface_tree;
-use smithay::input::keyboard::FilterResult;
-use smithay::reexports::wayland_server::DisplayHandle;
-use smithay::utils::SERIAL_COUNTER;
-use smithay::wayland::compositor::with_states;
-use smithay::wayland::dmabuf::DmabufState;
-use smithay::wayland::fractional_scale::with_fractional_scale;
 use tracing::{error, info};
 
-use crate::space_container::SpaceContainer;
-use crate::xdg_shell_wrapper::client_state::ClientState;
-use crate::xdg_shell_wrapper::server_state::ServerState;
-use crate::xdg_shell_wrapper::space::WrapperSpace;
+use crate::{
+    space_container::SpaceContainer,
+    xdg_shell_wrapper::{
+        client_state::ClientState, server_state::ServerState, space::WrapperSpace,
+    },
+};
 
 /// the  global state for the embedded server state
 #[allow(missing_debug_implementations)]
@@ -142,9 +145,12 @@ impl GlobalState {
                 error!("{:?}", err);
             } else {
                 let dmabuf_formats = renderer.dmabuf_formats().into_iter().collect_vec();
-                let mut state = DmabufState::new();
-                let global = state.create_global::<GlobalState>(dh, dmabuf_formats);
-                self.server_state.dmabuf_state.replace((state, global));
+                let global = self
+                    .server_state
+                    .dmabuf_state
+                    .0
+                    .create_global::<GlobalState>(dh, dmabuf_formats);
+                self.server_state.dmabuf_state.1.replace(global);
             }
         }
     }
@@ -194,9 +200,29 @@ impl GlobalState {
                     smithay::backend::renderer::element::Kind::Unspecified,
                 );
 
-            _ = dmg_tracked_renderer.render_output(renderer, &mut f, age, &elements, *clear_color);
+            let res = match dmg_tracked_renderer.render_output(
+                renderer,
+                &mut f,
+                age,
+                &elements,
+                *clear_color,
+            ) {
+                Ok(res) => res,
+                Err(err) => {
+                    error!("Failed to render drag-and-drop icon: {err}");
+                    *is_dirty = false;
+                    *has_frame = None;
+                    return;
+                },
+            };
             drop(f);
-            egl_surface.swap_buffers(None).unwrap();
+            let mut dmg = res.damage.cloned();
+            if let Err(err) = egl_surface.swap_buffers(dmg.as_deref_mut()) {
+                error!("Failed to swap drag-and-drop icon buffers: {err}");
+                *is_dirty = false;
+                *has_frame = None;
+                return;
+            }
             // FIXME: damage tracking issues on integrated graphics but not nvidia
             // self.egl_surface
             //     .as_ref()

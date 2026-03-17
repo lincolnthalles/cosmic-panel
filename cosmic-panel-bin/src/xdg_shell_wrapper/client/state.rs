@@ -332,11 +332,25 @@ impl ClientState {
             };
             let elements: Vec<WaylandSurfaceRenderElement<GlesRenderer>> =
                 s_layer.render_elements(renderer, (0, 0).into(), (*scale).into(), 1.0);
-            dmg_tracked_renderer
-                .render_output(renderer, &mut f, age, &elements, *clear_color)
-                .unwrap();
+            let res = match dmg_tracked_renderer.render_output(
+                renderer,
+                &mut f,
+                age,
+                &elements,
+                *clear_color,
+            ) {
+                Ok(res) => res,
+                Err(err) => {
+                    error!("Failed to render proxied layer surface: {err}");
+                    continue;
+                },
+            };
             drop(f);
-            egl_surface.swap_buffers(None).unwrap();
+            let mut dmg = res.damage.cloned();
+            if let Err(err) = egl_surface.swap_buffers(dmg.as_deref_mut()) {
+                error!("Failed to swap proxied layer surface buffers: {err}");
+                continue;
+            }
             // FIXME: damage tracking issues on integrated graphics but not nvidia
             // self.egl_surface
             //     .as_ref()

@@ -326,7 +326,7 @@ impl OutputHandler for GlobalState {}
 //
 impl DmabufHandler for GlobalState {
     fn dmabuf_state(&mut self) -> &mut smithay::wayland::dmabuf::DmabufState {
-        &mut self.server_state.dmabuf_state.as_mut().unwrap().0
+        &mut self.server_state.dmabuf_state.0
     }
 
     fn dmabuf_imported(
