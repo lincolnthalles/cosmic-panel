@@ -223,13 +223,8 @@ impl GlobalState {
                 *has_frame = None;
                 return;
             }
-            // FIXME: damage tracking issues on integrated graphics but not nvidia
-            // self.egl_surface
-            //     .as_ref()
-            //     .unwrap()
-            //     .swap_buffers(res.0.as_deref_mut())?;
 
-            // // TODO what if there is "no output"?
+            // TODO what if there is "no output"?
             for o in &self.client_state.outputs {
                 let output = &o.1;
                 send_frames_surface_tree(

@@ -351,11 +351,6 @@ impl ClientState {
                 error!("Failed to swap proxied layer surface buffers: {err}");
                 continue;
             }
-            // FIXME: damage tracking issues on integrated graphics but not nvidia
-            // self.egl_surface
-            //     .as_ref()
-            //     .unwrap()
-            //     .swap_buffers(res.0.as_deref_mut())?;
 
             // TODO what if there is "no output"?
             for o in &self.outputs {

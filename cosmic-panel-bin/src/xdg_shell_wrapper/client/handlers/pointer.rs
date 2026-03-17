@@ -62,17 +62,23 @@ impl GlobalState {
         let start_time = self.start_time;
         let time = start_time.elapsed().as_millis();
 
-        let seat_index = self
-            .server_state
-            .seats
-            .iter()
-            .position(|SeatPair { client, .. }| {
+        let Some(seat_index) =
+            self.server_state.seats.iter().position(|SeatPair { client, .. }| {
                 client.ptr.as_ref().map(|p| p.pointer() == pointer).unwrap_or(false)
             })
-            .unwrap();
+        else {
+            tracing::warn!("Dropping pointer frame for unknown seat");
+            return;
+        };
         let seat_name = self.server_state.seats[seat_index].name.to_string();
-        let ptr = self.server_state.seats[seat_index].server.seat.get_pointer().unwrap();
-        let kbd = self.server_state.seats[seat_index].server.seat.get_keyboard().unwrap();
+        let Some(ptr) = self.server_state.seats[seat_index].server.seat.get_pointer() else {
+            tracing::warn!("Dropping pointer frame without server pointer");
+            return;
+        };
+        let Some(kbd) = self.server_state.seats[seat_index].server.seat.get_keyboard() else {
+            tracing::warn!("Dropping pointer frame without server keyboard");
+            return;
+        };
         for e in events {
             let seat = &mut self.server_state.seats[seat_index];
             match e.kind {

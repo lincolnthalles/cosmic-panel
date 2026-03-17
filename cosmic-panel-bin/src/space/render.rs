@@ -118,7 +118,9 @@ impl PanelSpace {
                 Some(r) => r,
                 None => return Ok(()),
             };
-            let egl_surface = self.egl_surface.as_mut().unwrap();
+            let Some(egl_surface) = self.egl_surface.as_mut() else {
+                return Ok(());
+            };
             _ = unsafe { renderer.egl_context().make_current_with_surface(egl_surface) };
             let age = egl_surface.buffer_age().unwrap_or_default() as usize;
             let mut f = renderer.bind(egl_surface)?;
@@ -144,7 +146,10 @@ impl PanelSpace {
                     drop(f);
                     egl_surface.swap_buffers(None)?;
                 }
-                let wl_surface = self.layer.as_ref().unwrap().wl_surface();
+                let Some(layer) = self.layer.as_ref() else {
+                    return Ok(());
+                };
+                let wl_surface = layer.wl_surface();
                 wl_surface.frame(qh, wl_surface.clone());
                 wl_surface.commit();
                 // reset the damage tracker
@@ -258,12 +263,12 @@ impl PanelSpace {
                     elements.extend(bg);
                 };
 
-                let _res =
+                let res =
                     my_renderer.render_output(renderer, &mut f, age, &elements, clear_color)?;
                 drop(f);
-                // let mut dmg = res.damage.cloned();
+                let mut dmg = res.damage.cloned();
 
-                egl_surface.swap_buffers(None)?;
+                egl_surface.swap_buffers(dmg.as_deref_mut())?;
 
                 for window in self.space.elements().filter_map(|w| {
                     if let CosmicMappedInternal::Window(w) = w { Some(w) } else { None }
@@ -286,7 +291,10 @@ impl PanelSpace {
                         move |_, _| Some(output.clone()),
                     );
                 }
-                let wl_surface = self.layer.as_ref().unwrap().wl_surface().clone();
+                let Some(layer) = self.layer.as_ref() else {
+                    return Ok(());
+                };
+                let wl_surface = layer.wl_surface().clone();
                 wl_surface.frame(qh, wl_surface.clone());
                 wl_surface.commit();
 
@@ -304,17 +312,17 @@ impl PanelSpace {
                 && p.popup.c_popup.wl_surface().is_alive()
                 && p.popup.has_frame
         }) {
-            if let Err(err) = unsafe {
-                renderer
-                    .egl_context()
-                    .make_current_with_surface(p.popup.egl_surface.as_ref().unwrap())
-            } {
+            let Some(egl_surface) = p.popup.egl_surface.as_mut() else {
+                continue;
+            };
+            if let Err(err) =
+                unsafe { renderer.egl_context().make_current_with_surface(egl_surface) }
+            {
                 tracing::warn!("{:?}", err);
             }
-            let age =
-                p.popup.egl_surface.as_ref().unwrap().buffer_age().unwrap_or_default() as usize;
+            let age = egl_surface.buffer_age().unwrap_or_default() as usize;
 
-            let mut f = renderer.bind(p.popup.egl_surface.as_mut().unwrap())?;
+            let mut f = renderer.bind(egl_surface)?;
 
             let elements: Vec<WaylandSurfaceRenderElement<_>> = render_elements_from_surface_tree(
                 renderer,
@@ -334,7 +342,7 @@ impl PanelSpace {
             drop(f);
             let mut dmg = res.damage.cloned();
 
-            p.popup.egl_surface.as_ref().unwrap().swap_buffers(dmg.as_deref_mut())?;
+            egl_surface.swap_buffers(dmg.as_deref_mut())?;
 
             let wl_surface = p.popup.c_popup.wl_surface().clone();
             wl_surface.frame(qh, wl_surface.clone());
@@ -393,12 +401,13 @@ impl PanelSpace {
                 && p.state.is_none()
                 && p.c_popup.wl_surface().is_alive()
         }) {
-            _ = unsafe {
-                renderer.egl_context().make_current_with_surface(p.egl_surface.as_ref().unwrap())
+            let Some(egl_surface) = p.egl_surface.as_mut() else {
+                return Ok(());
             };
-            let age = p.egl_surface.as_ref().unwrap().buffer_age().unwrap_or_default() as usize;
+            _ = unsafe { renderer.egl_context().make_current_with_surface(egl_surface) };
+            let age = egl_surface.buffer_age().unwrap_or_default() as usize;
 
-            let mut f = renderer.bind(p.egl_surface.as_mut().unwrap())?;
+            let mut f = renderer.bind(egl_surface)?;
             let space = match section {
                 OverflowSection::Center => &self.overflow_center,
                 OverflowSection::Left => &self.overflow_left,
@@ -483,7 +492,7 @@ impl PanelSpace {
             drop(f);
             let mut dmg = res.damage.cloned();
 
-            p.egl_surface.as_ref().unwrap().swap_buffers(dmg.as_deref_mut())?;
+            egl_surface.swap_buffers(dmg.as_deref_mut())?;
             let wl_surface = p.c_popup.wl_surface();
             wl_surface.frame(qh, wl_surface.clone());
             p.dirty = false;
