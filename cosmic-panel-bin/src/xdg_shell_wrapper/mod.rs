@@ -3,7 +3,10 @@
 
 //! Provides the core functionality for cosmic-panel
 
-use std::time::{Duration, Instant};
+use std::{
+    panic::AssertUnwindSafe,
+    time::{Duration, Instant},
+};
 
 use anyhow::Result;
 use sctk::shm::multi::MultiPool;
@@ -111,9 +114,8 @@ pub fn run(
         event_loop.dispatch(dur, &mut global_state)?;
 
         // rendering
-        {
+        if std::panic::catch_unwind(AssertUnwindSafe(|| {
             let space = &mut global_state.space;
-
             let _ = space.handle_events(
                 &s_dh,
                 &global_state.client_state.queue_handle,
@@ -121,14 +123,35 @@ pub fn run(
                 global_state.start_time.elapsed().as_millis().try_into()?,
                 Some(dur),
             );
+            Result::<()>::Ok(())
+        }))
+        .is_err()
+        {
+            tracing::error!("Recovered from panic in space event handling");
+            continue;
         }
-        global_state.draw_dnd_icon();
 
-        if let Some(renderer) = global_state.space.renderer() {
-            global_state.client_state.draw_layer_surfaces(
-                renderer,
-                global_state.start_time.elapsed().as_millis().try_into()?,
-            );
+        if std::panic::catch_unwind(AssertUnwindSafe(|| {
+            global_state.draw_dnd_icon();
+        }))
+        .is_err()
+        {
+            tracing::error!("Recovered from panic while drawing drag-and-drop icon");
+            continue;
+        }
+
+        if let Some(renderer) = global_state.space.renderer()
+            && std::panic::catch_unwind(AssertUnwindSafe(|| {
+                global_state.client_state.draw_layer_surfaces(
+                    renderer,
+                    global_state.start_time.elapsed().as_millis().try_into()?,
+                );
+                Result::<()>::Ok(())
+            }))
+            .is_err()
+        {
+            tracing::error!("Recovered from panic while drawing proxied layer surfaces");
+            continue;
         }
 
         // dispatch server events

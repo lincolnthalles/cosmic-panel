@@ -151,6 +151,7 @@ impl GlobalState {
                     .0
                     .create_global::<GlobalState>(dh, dmabuf_formats);
                 self.server_state.dmabuf_state.1.replace(global);
+                self.server_state.dmabuf_import_failures = 0;
             }
         }
     }

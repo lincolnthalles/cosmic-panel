@@ -32,7 +32,7 @@ use smithay::{
     delegate_data_device, delegate_dmabuf, delegate_output, delegate_primary_selection,
     delegate_seat,
 };
-use tracing::{error, info, trace};
+use tracing::{error, info, trace, warn};
 
 use crate::iced::elements::target::SpaceTarget;
 use crate::xdg_shell_wrapper::shared_state::GlobalState;
@@ -339,7 +339,22 @@ impl DmabufHandler for GlobalState {
             self.space.renderer().map(|renderer| renderer.import_dmabuf(&dmabuf, None))
         {
             error!("Failed to import dmabuf: {}", err);
+            self.server_state.dmabuf_import_failures += 1;
+            if self.server_state.dmabuf_import_failures >= 8
+                && let Some(global) = self.server_state.dmabuf_state.1.take()
+            {
+                warn!(
+                    "Disabling dmabuf global after repeated import failures ({} failures)",
+                    self.server_state.dmabuf_import_failures
+                );
+                self.server_state
+                    .dmabuf_state
+                    .0
+                    .disable_global::<GlobalState>(&self.server_state.display_handle, &global);
+            }
+            return;
         }
+        self.server_state.dmabuf_import_failures = 0;
     }
 }
 

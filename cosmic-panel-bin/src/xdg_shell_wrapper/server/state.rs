@@ -59,6 +59,7 @@ pub struct ServerState {
     pub(crate) seat_state: SeatState<GlobalState>,
     pub(crate) data_device_state: DataDeviceState,
     pub(crate) dmabuf_state: (DmabufState, Option<DmabufGlobal>),
+    pub(crate) dmabuf_import_failures: u32,
     pub(crate) primary_selection_state: PrimarySelectionState,
     pub(crate) layer_shell_state: WlrLayerShellState,
     pub(crate) _fractional_scale_state: FractionalScaleManagerState,
@@ -86,6 +87,7 @@ impl ServerState {
             _viewporter_state: ViewporterState::new::<GlobalState>(&dh),
 
             dmabuf_state: (DmabufState::new(), None),
+            dmabuf_import_failures: 0,
         }
     }
 }
