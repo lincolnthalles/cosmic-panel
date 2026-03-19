@@ -81,7 +81,15 @@ pub fn run(
 
     global_state.client_state.cursor_surface = Some(cursor_surface);
 
-    event_loop.dispatch(Duration::from_millis(30), &mut global_state)?;
+    match std::panic::catch_unwind(AssertUnwindSafe(|| {
+        event_loop.dispatch(Duration::from_millis(30), &mut global_state)
+    })) {
+        Ok(Ok(())) => {}
+        Ok(Err(err)) => return Err(err.into()),
+        Err(_) => {
+            tracing::error!("Recovered from panic during initial event-loop dispatch");
+        },
+    }
 
     let handle = event_loop.handle();
     handle
@@ -99,6 +107,8 @@ pub fn run(
     // let set_clipboard_once = Rc::new(Cell::new(false));
 
     let mut prev_dur = Duration::from_millis(16);
+    let mut consecutive_dispatch_failures = 0_u32;
+    const MAX_CONSECUTIVE_DISPATCH_FAILURES: u32 = 8;
     loop {
         let iter_start = Instant::now();
 
@@ -111,7 +121,38 @@ pub fn run(
         }
         .max(prev_dur);
 
-        event_loop.dispatch(dur, &mut global_state)?;
+        match std::panic::catch_unwind(AssertUnwindSafe(|| event_loop.dispatch(dur, &mut global_state)))
+        {
+            Ok(Ok(())) => {
+                consecutive_dispatch_failures = 0;
+            }
+            Ok(Err(err)) => {
+                consecutive_dispatch_failures = consecutive_dispatch_failures.saturating_add(1);
+                tracing::error!(
+                    "Event-loop dispatch failed (attempt {consecutive_dispatch_failures}/{MAX_CONSECUTIVE_DISPATCH_FAILURES}): {err:?}"
+                );
+                if consecutive_dispatch_failures >= MAX_CONSECUTIVE_DISPATCH_FAILURES {
+                    return Err(anyhow::anyhow!(
+                        "Event-loop dispatch failed repeatedly; aborting to recover from stuck state"
+                    ));
+                }
+                std::thread::sleep(Duration::from_millis(100));
+                continue;
+            },
+            Err(_) => {
+                consecutive_dispatch_failures = consecutive_dispatch_failures.saturating_add(1);
+                tracing::error!(
+                    "Recovered from panic during event-loop dispatch (attempt {consecutive_dispatch_failures}/{MAX_CONSECUTIVE_DISPATCH_FAILURES})"
+                );
+                if consecutive_dispatch_failures >= MAX_CONSECUTIVE_DISPATCH_FAILURES {
+                    return Err(anyhow::anyhow!(
+                        "Event-loop dispatch panicked repeatedly; aborting to recover from stuck state"
+                    ));
+                }
+                std::thread::sleep(Duration::from_millis(100));
+                continue;
+            },
+        }
 
         // rendering
         if std::panic::catch_unwind(AssertUnwindSafe(|| {
@@ -155,9 +196,40 @@ pub fn run(
         }
 
         // dispatch server events
-        {
+        match std::panic::catch_unwind(AssertUnwindSafe(|| -> Result<()> {
             server_display.dispatch_clients(&mut global_state)?;
             server_display.flush_clients()?;
+            Ok(())
+        })) {
+            Ok(Ok(())) => {
+                consecutive_dispatch_failures = 0;
+            }
+            Ok(Err(err)) => {
+                consecutive_dispatch_failures = consecutive_dispatch_failures.saturating_add(1);
+                tracing::error!(
+                    "Server dispatch failed (attempt {consecutive_dispatch_failures}/{MAX_CONSECUTIVE_DISPATCH_FAILURES}): {err:?}"
+                );
+                if consecutive_dispatch_failures >= MAX_CONSECUTIVE_DISPATCH_FAILURES {
+                    return Err(anyhow::anyhow!(
+                        "Server dispatch failed repeatedly; aborting to recover from stuck state"
+                    ));
+                }
+                std::thread::sleep(Duration::from_millis(100));
+                continue;
+            },
+            Err(_) => {
+                consecutive_dispatch_failures = consecutive_dispatch_failures.saturating_add(1);
+                tracing::error!(
+                    "Recovered from panic while dispatching server clients (attempt {consecutive_dispatch_failures}/{MAX_CONSECUTIVE_DISPATCH_FAILURES})"
+                );
+                if consecutive_dispatch_failures >= MAX_CONSECUTIVE_DISPATCH_FAILURES {
+                    return Err(anyhow::anyhow!(
+                        "Server dispatch panicked repeatedly; aborting to recover from stuck state"
+                    ));
+                }
+                std::thread::sleep(Duration::from_millis(100));
+                continue;
+            },
         }
         global_state.iter_count += 1;
 

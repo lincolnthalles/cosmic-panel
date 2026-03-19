@@ -170,6 +170,7 @@ pub struct ClientState {
         f64,
         Option<WpFractionalScaleV1>,
         Option<WpViewport>,
+        u32,
     )>,
 }
 
@@ -222,6 +223,8 @@ pub(crate) enum SurfaceState {
     Waiting(u32, Size<i32, Logical>),
     Dirty(u32),
 }
+
+pub(crate) const PROXIED_LAYER_EGL_FAILURE_THRESHOLD: u32 = 8;
 
 impl ClientState {
     /// Create a new client state
@@ -317,13 +320,16 @@ impl ClientState {
     /// draw the proxied layer shell surfaces
     pub fn draw_layer_surfaces(&mut self, renderer: &mut GlesRenderer, time: u32) {
         let clear_color = &[0.0, 0.0, 0.0, 0.0];
-        for (egl_surface, dmg_tracked_renderer, s_layer, _c_layer, state, scale, ..) in
+        for (egl_surface, dmg_tracked_renderer, s_layer, _c_layer, state, scale, .., egl_failures) in
             &mut self.proxied_layer_surfaces
         {
+            if *egl_failures >= PROXIED_LAYER_EGL_FAILURE_THRESHOLD {
+                continue;
+            }
             let generation = match state {
                 SurfaceState::WaitingFirst(..) => continue,
                 SurfaceState::Waiting(..) => continue,
-                SurfaceState::Dirty(generation) => generation,
+                SurfaceState::Dirty(generation) => *generation,
             };
             _ = unsafe { renderer.egl_context().make_current_with_surface(egl_surface) };
             let age = egl_surface.buffer_age().unwrap_or_default() as usize;
@@ -341,16 +347,33 @@ impl ClientState {
             ) {
                 Ok(res) => res,
                 Err(err) => {
+                    *egl_failures = egl_failures.saturating_add(1);
                     error!("Failed to render proxied layer surface: {err}");
+                    *state = SurfaceState::Waiting(generation, s_layer.bbox().size);
+                    if *egl_failures >= PROXIED_LAYER_EGL_FAILURE_THRESHOLD {
+                        error!(
+                            "Disabling proxied layer surface rendering after repeated EGL render failures ({} failures)",
+                            *egl_failures
+                        );
+                    }
                     continue;
                 },
             };
             drop(f);
             let mut dmg = res.damage.cloned();
             if let Err(err) = egl_surface.swap_buffers(dmg.as_deref_mut()) {
+                *egl_failures = egl_failures.saturating_add(1);
                 error!("Failed to swap proxied layer surface buffers: {err}");
+                *state = SurfaceState::Waiting(generation, s_layer.bbox().size);
+                if *egl_failures >= PROXIED_LAYER_EGL_FAILURE_THRESHOLD {
+                    error!(
+                        "Disabling proxied layer surface rendering after repeated EGL swap failures ({} failures)",
+                        *egl_failures
+                    );
+                }
                 continue;
             }
+            *egl_failures = 0;
 
             // TODO what if there is "no output"?
             for o in &self.outputs {
@@ -359,7 +382,7 @@ impl ClientState {
                     Some(output.clone())
                 })
             }
-            *state = SurfaceState::Waiting(*generation, s_layer.bbox().size);
+            *state = SurfaceState::Waiting(generation, s_layer.bbox().size);
         }
     }
 

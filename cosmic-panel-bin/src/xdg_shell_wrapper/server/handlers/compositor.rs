@@ -18,7 +18,9 @@ use smithay::{delegate_compositor, delegate_shm};
 use tracing::{error, info, trace};
 use wayland_egl::WlEglSurface;
 
-use crate::xdg_shell_wrapper::client_state::{SurfaceState, WrapperClientCompositorState};
+use crate::xdg_shell_wrapper::client_state::{
+    PROXIED_LAYER_EGL_FAILURE_THRESHOLD, SurfaceState, WrapperClientCompositorState,
+};
 use crate::xdg_shell_wrapper::shared_state::GlobalState;
 use crate::xdg_shell_wrapper::space::{ClientEglSurface, WrapperSpace};
 
@@ -134,29 +136,37 @@ impl CompositorHandler for GlobalState {
                 }
 
                 client_surface.commit();
-                let client_egl_surface = unsafe {
-                    ClientEglSurface::new(
-                        WlEglSurface::new(
-                            client_surface.wl_surface().id(),
-                            size.w.max(1),
-                            size.h.max(1),
-                        )
-                        .unwrap(), // TODO remove unwrap
-                        client_surface.wl_surface().clone(),
-                    )
+                let client_egl_surface = match WlEglSurface::new(
+                    client_surface.wl_surface().id(),
+                    size.w.max(1),
+                    size.h.max(1),
+                ) {
+                    Ok(surface) => unsafe {
+                        ClientEglSurface::new(surface, client_surface.wl_surface().clone())
+                    },
+                    Err(err) => {
+                        error!("Failed to create wayland EGL surface for proxied layer: {err:?}");
+                        return;
+                    },
+                };
+                let Some(pixel_format) = renderer.egl_context().pixel_format() else {
+                    error!("Failed to get pixel format from EGL context for proxied layer");
+                    return;
                 };
 
-                let egl_surface = unsafe {
+                let egl_surface = match unsafe {
                     EGLSurface::new(
                         renderer.egl_context().display(),
-                        renderer
-                            .egl_context()
-                            .pixel_format()
-                            .expect("Failed to get pixel format from EGL context "),
+                        pixel_format,
                         renderer.egl_context().config_id(),
                         client_egl_surface,
                     )
-                    .expect("Failed to create EGL Surface")
+                } {
+                    Ok(surface) => surface,
+                    Err(err) => {
+                        error!("Failed to create EGL surface for proxied layer: {err:?}");
+                        return;
+                    },
                 };
 
                 let surface = client_surface.wl_surface();
@@ -185,6 +195,7 @@ impl CompositorHandler for GlobalState {
                     1.0,
                     scale,
                     viewport,
+                    0,
                 ));
             }
             if let Some((
@@ -196,6 +207,7 @@ impl CompositorHandler for GlobalState {
                 scale,
                 _,
                 viewport,
+                egl_failures,
             )) = self
                 .client_state
                 .proxied_layer_surfaces
@@ -231,6 +243,7 @@ impl CompositorHandler for GlobalState {
                         c_layer_surface.set_size(size.w as u32, size.h as u32);
                         *renderer =
                             OutputDamageTracker::new(scaled_size, *scale, Transform::Flipped180);
+                        *egl_failures = 0;
                         c_layer_surface.wl_surface().commit();
                         *state = if old_size.w == 0 || old_size.h == 0 {
                             SurfaceState::Dirty(generation)
@@ -238,7 +251,11 @@ impl CompositorHandler for GlobalState {
                             SurfaceState::Waiting(generation.wrapping_add(1), size)
                         };
                     } else {
-                        *state = SurfaceState::Dirty(generation);
+                        if *egl_failures >= PROXIED_LAYER_EGL_FAILURE_THRESHOLD {
+                            *state = SurfaceState::Waiting(generation, size);
+                        } else {
+                            *state = SurfaceState::Dirty(generation);
+                        }
                     }
                 }
             }
@@ -274,25 +291,37 @@ impl CompositorHandler for GlobalState {
                         },
                         None => {
                             let c_surface = &c_icon.1;
-                            let client_egl_surface = unsafe {
-                                ClientEglSurface::new(
-                                    WlEglSurface::new(c_surface.id(), size.w.max(1), size.h.max(1))
-                                        .unwrap(), // TODO remove unwrap
-                                    c_surface.clone(),
-                                )
+                            let client_egl_surface =
+                                match WlEglSurface::new(c_surface.id(), size.w.max(1), size.h.max(1))
+                                {
+                                    Ok(surface) => unsafe {
+                                        ClientEglSurface::new(surface, c_surface.clone())
+                                    },
+                                    Err(err) => {
+                                        error!(
+                                            "Failed to create wayland EGL surface for DnD icon: {err:?}"
+                                        );
+                                        return;
+                                    },
+                                };
+                            let Some(pixel_format) = renderer.egl_context().pixel_format() else {
+                                error!("Failed to get pixel format from EGL context for DnD icon");
+                                return;
                             };
 
-                            let mut egl_surface = unsafe {
+                            let mut egl_surface = match unsafe {
                                 EGLSurface::new(
                                     renderer.egl_context().display(),
-                                    renderer
-                                        .egl_context()
-                                        .pixel_format()
-                                        .expect("Failed to get pixel format from EGL context "),
+                                    pixel_format,
                                     renderer.egl_context().config_id(),
                                     client_egl_surface,
                                 )
-                                .expect("Failed to create EGL Surface")
+                            } {
+                                Ok(surface) => surface,
+                                Err(err) => {
+                                    error!("Failed to create EGL surface for DnD icon: {err:?}");
+                                    return;
+                                },
                             };
                             _ = unsafe {
                                 renderer.egl_context().make_current_with_surface(&egl_surface)

@@ -9,18 +9,16 @@ use sctk::seat::touch::TouchHandler;
 use smithay::input::touch::{self, TouchHandle};
 use smithay::utils::{Point, SERIAL_COUNTER};
 
-fn get_touch_handle(state: &GlobalState, touch: &WlTouch) -> (String, TouchHandle<GlobalState>) {
-    let seat_index = state
-        .server_state
-        .seats
-        .iter()
-        .position(|SeatPair { client, .. }| {
-            client.touch.as_ref().map(|t| t == touch).unwrap_or(false)
-        })
-        .unwrap();
+fn get_touch_handle(
+    state: &GlobalState,
+    touch: &WlTouch,
+) -> Option<(String, TouchHandle<GlobalState>)> {
+    let seat_index = state.server_state.seats.iter().position(|SeatPair { client, .. }| {
+        client.touch.as_ref().map(|t| t == touch).unwrap_or(false)
+    })?;
     let seat_name = state.server_state.seats[seat_index].name.to_string();
-    let touch = state.server_state.seats[seat_index].server.seat.get_touch().unwrap();
-    (seat_name, touch)
+    let touch = state.server_state.seats[seat_index].server.seat.get_touch()?;
+    Some((seat_name, touch))
 }
 
 impl TouchHandler for GlobalState {
@@ -35,16 +33,17 @@ impl TouchHandler for GlobalState {
         id: i32,
         location: (f64, f64),
     ) {
-        let seat_index = self
-            .server_state
-            .seats
-            .iter()
-            .position(|SeatPair { client, .. }| {
-                client.touch.as_ref().map(|t| t == touch).unwrap_or(false)
-            })
-            .unwrap();
+        let Some(seat_index) = self.server_state.seats.iter().position(|SeatPair { client, .. }| {
+            client.touch.as_ref().map(|t| t == touch).unwrap_or(false)
+        }) else {
+            tracing::warn!("Dropping touch down event for unknown seat");
+            return;
+        };
         let seat_name = self.server_state.seats[seat_index].name.to_string();
-        let touch = self.server_state.seats[seat_index].server.seat.get_touch().unwrap();
+        let Some(touch) = self.server_state.seats[seat_index].server.seat.get_touch() else {
+            tracing::warn!("Dropping touch down event without server touch handle");
+            return;
+        };
         self.server_state.seats[seat_index].client.last_touch_down = (serial, time);
 
         self.client_state.touch_surfaces.insert(id, surface.clone());
@@ -71,7 +70,10 @@ impl TouchHandler for GlobalState {
         time: u32,
         id: i32,
     ) {
-        let (_, touch) = get_touch_handle(self, touch);
+        let Some((_, touch)) = get_touch_handle(self, touch) else {
+            tracing::warn!("Dropping touch up event for unknown seat");
+            return;
+        };
 
         touch.up(self, &touch::UpEvent {
             slot: Some(id as u32).into(),
@@ -89,7 +91,10 @@ impl TouchHandler for GlobalState {
         id: i32,
         location: (f64, f64),
     ) {
-        let (seat_name, touch) = get_touch_handle(self, touch);
+        let Some((seat_name, touch)) = get_touch_handle(self, touch) else {
+            tracing::warn!("Dropping touch motion event for unknown seat");
+            return;
+        };
 
         if let Some(surface) = self.client_state.touch_surfaces.get(&id)
             && let Some(ServerPointerFocus { surface, c_pos, s_pos, .. }) = self.space.touch_under(
@@ -131,8 +136,11 @@ impl TouchHandler for GlobalState {
     }
 
     fn cancel(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, touch: &WlTouch) {
-        let (_, touch) = get_touch_handle(self, touch);
-        touch.cancel(self);
+        if let Some((_, touch)) = get_touch_handle(self, touch) {
+            touch.cancel(self);
+        } else {
+            tracing::warn!("Dropping touch cancel event for unknown seat");
+        }
     }
 }
 

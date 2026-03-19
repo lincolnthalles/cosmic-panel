@@ -1052,8 +1052,9 @@ impl WrapperSpace for PanelSpace {
                         .is_some_and(|(s, prev_hover)| Some(s) == prev_hover)
                 })
             {
-                let (pos, _) = prev_hover.unwrap();
-                self.s_hovered_surface.remove(pos);
+                if let Some((pos, _)) = prev_hover {
+                    self.s_hovered_surface.remove(pos);
+                }
             }
             return None;
         };
@@ -1068,7 +1069,9 @@ impl WrapperSpace for PanelSpace {
         if let Some(auto_hover_dur) =
             self.config.autohover_delay_ms.map(|d| Duration::from_millis(d as u64))
         {
-            if prev_popup_client.is_some()
+            let hover_changed = self.hover_track.hover_id != cur_client_hover_id;
+            if hover_changed
+                && prev_popup_client.is_some()
                 && matches!(cur_client_hover_id, Some(HoverId::Overflow(_)))
             {
                 self.hover_track.set_hover_id(cur_client_hover_id.clone());
@@ -1089,6 +1092,12 @@ impl WrapperSpace for PanelSpace {
                             .find(|s| s.id() == panel_id)
                             .filter(|s| s.hover_track == cur_hover_track)
                         {
+                            let Some(layer_surface) =
+                                space.layer.as_ref().map(|layer| layer.wl_surface().clone())
+                            else {
+                                tracing::warn!("Skipping overflow auto-hover click without layer surface");
+                                return calloop::timer::TimeoutAction::Drop;
+                            };
                             // place in center
                             let mut p = (x, y);
                             p.0 = relative_loc.x + geo.size.w / 2;
@@ -1096,12 +1105,12 @@ impl WrapperSpace for PanelSpace {
 
                             vec![
                                 PointerEvent {
-                                    surface: space.layer.as_ref().unwrap().wl_surface().clone(),
+                                    surface: layer_surface.clone(),
                                     position: (p.0 as f64, p.1 as f64),
                                     kind: sctk::seat::pointer::PointerEventKind::Motion { time: 0 },
                                 },
                                 PointerEvent {
-                                    surface: space.layer.as_ref().unwrap().wl_surface().clone(),
+                                    surface: layer_surface.clone(),
                                     position: (p.0 as f64, p.1 as f64),
                                     kind: sctk::seat::pointer::PointerEventKind::Press {
                                         time: 0,
@@ -1110,7 +1119,7 @@ impl WrapperSpace for PanelSpace {
                                     },
                                 },
                                 PointerEvent {
-                                    surface: space.layer.as_ref().unwrap().wl_surface().clone(),
+                                    surface: layer_surface,
                                     position: (p.0 as f64, p.1 as f64),
                                     kind: sctk::seat::pointer::PointerEventKind::Release {
                                         time: 0,
@@ -1141,7 +1150,8 @@ impl WrapperSpace for PanelSpace {
                         });
                     }
                 }
-            } else if ((prev_popup_client
+            } else if hover_changed
+                && ((prev_popup_client
                 .as_ref()
                 .zip(cur_client_hover_id.as_ref())
                 .is_some_and(|(a, b)| &HoverId::Client(a.clone()) != b))
@@ -1165,24 +1175,49 @@ impl WrapperSpace for PanelSpace {
                             return calloop::timer::TimeoutAction::Drop;
                         }
 
+                        let Some(layer_surface) =
+                            space.layer.as_ref().map(|layer| layer.wl_surface().clone())
+                        else {
+                            tracing::warn!("Skipping auto-hover click without layer surface");
+                            return calloop::timer::TimeoutAction::Drop;
+                        };
+
                         // send press to new client if it hover flag is set
-                        let left_guard = space.clients_left.lock().unwrap();
-                        let center_guard = space.clients_center.lock().unwrap();
-                        let right_guard = space.clients_right.lock().unwrap();
+                        let Ok(left_guard) = space.clients_left.lock() else {
+                            tracing::warn!("Skipping auto-hover click due poisoned left client lock");
+                            return calloop::timer::TimeoutAction::Drop;
+                        };
+                        let Ok(center_guard) = space.clients_center.lock() else {
+                            tracing::warn!("Skipping auto-hover click due poisoned center client lock");
+                            return calloop::timer::TimeoutAction::Drop;
+                        };
+                        let Ok(right_guard) = space.clients_right.lock() else {
+                            tracing::warn!("Skipping auto-hover click due poisoned right client lock");
+                            return calloop::timer::TimeoutAction::Drop;
+                        };
                         let client = left_guard
                             .iter()
                             .chain(center_guard.iter())
                             .chain(right_guard.iter())
-                            .find(|c| {
-                                c.auto_popup_hover_press.is_some()
-                                    && c.client
-                                        .as_ref()
-                                        .zip(cur_client_hover_id.as_ref())
-                                        .is_some_and(|(c, id)| HoverId::Client(c.id()) == *id)
-                                    || c.client
-                                        .as_ref()
-                                        .zip(overflow_client_hover_id.as_ref())
-                                        .is_some_and(|(c, id)| c.id() == *id)
+                            .find_map(|c| {
+                                let Some(anchor) = c.auto_popup_hover_press.clone() else {
+                                    return None;
+                                };
+                                let matches_hover_client = c
+                                    .client
+                                    .as_ref()
+                                    .zip(cur_client_hover_id.as_ref())
+                                    .is_some_and(|(c, id)| HoverId::Client(c.id()) == *id);
+                                let matches_overflow_client = c
+                                    .client
+                                    .as_ref()
+                                    .zip(overflow_client_hover_id.as_ref())
+                                    .is_some_and(|(c, id)| c.id() == *id);
+                                if matches_hover_client || matches_overflow_client {
+                                    Some(anchor)
+                                } else {
+                                    None
+                                }
                             })
                             .or({
                                 // overflow button
@@ -1190,12 +1225,9 @@ impl WrapperSpace for PanelSpace {
                             })
                             .zip(hover_relative_loc)
                             .zip(hover_geo);
-                        if let Some(((c, relative_loc), geo)) = client {
+                        if let Some(((auto_anchor, relative_loc), geo)) = client {
                             let mut p = (x, y);
-                            let effective_anchor = match (
-                                c.auto_popup_hover_press.unwrap(),
-                                space.config.is_horizontal(),
-                            ) {
+                            let effective_anchor = match (auto_anchor, space.config.is_horizontal()) {
                                 (AppletAutoClickAnchor::Start, true) => AppletAutoClickAnchor::Left,
                                 (AppletAutoClickAnchor::Start, false) => AppletAutoClickAnchor::Top,
                                 (AppletAutoClickAnchor::End, true) => AppletAutoClickAnchor::Right,
@@ -1251,12 +1283,12 @@ impl WrapperSpace for PanelSpace {
                             }
                             vec![
                                 PointerEvent {
-                                    surface: space.layer.as_ref().unwrap().wl_surface().clone(),
+                                    surface: layer_surface.clone(),
                                     position: (p.0 as f64, p.1 as f64),
                                     kind: sctk::seat::pointer::PointerEventKind::Motion { time: 0 },
                                 },
                                 PointerEvent {
-                                    surface: space.layer.as_ref().unwrap().wl_surface().clone(),
+                                    surface: layer_surface.clone(),
                                     position: (p.0 as f64, p.1 as f64),
                                     kind: sctk::seat::pointer::PointerEventKind::Press {
                                         time: 0,
@@ -1265,7 +1297,7 @@ impl WrapperSpace for PanelSpace {
                                     },
                                 },
                                 PointerEvent {
-                                    surface: space.layer.as_ref().unwrap().wl_surface().clone(),
+                                    surface: layer_surface,
                                     position: (p.0 as f64, p.1 as f64),
                                     kind: sctk::seat::pointer::PointerEventKind::Release {
                                         time: 0,
@@ -1299,7 +1331,7 @@ impl WrapperSpace for PanelSpace {
                         _ = on_autohover(data);
                     });
                 }
-            } else {
+            } else if hover_changed {
                 self.hover_track.set_hover_id(None);
             }
         }
