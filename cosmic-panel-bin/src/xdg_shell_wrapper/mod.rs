@@ -4,6 +4,8 @@
 //! Provides the core functionality for cosmic-panel
 
 use std::{
+    collections::HashMap,
+    fs,
     panic::AssertUnwindSafe,
     time::{Duration, Instant},
 };
@@ -15,11 +17,12 @@ use smithay::reexports::wayland_server::Display;
 
 pub use client::handlers::{wp_fractional_scaling, wp_security_context, wp_viewporter};
 pub use client::state as client_state;
-use client::state::ClientState;
+use client::state::{ClientState, PROXIED_LAYER_EGL_FAILURE_THRESHOLD};
 pub use server::state as server_state;
 use server::state::ServerState;
 use shared_state::GlobalState;
 use space::{Visibility, WrapperSpace};
+use tracing::warn;
 pub use xdg_shell_wrapper_config as config;
 
 use crate::space_container::SpaceContainer;
@@ -32,6 +35,103 @@ pub mod shared_state;
 pub mod space;
 /// utilities
 pub mod util;
+
+fn is_too_many_open_files(err: &impl std::fmt::Debug) -> bool {
+    let dbg = format!("{err:?}");
+    dbg.contains("Too many open files") || dbg.contains("code: 24")
+}
+
+fn summarize_fd_target(target: &str) -> String {
+    if target.starts_with("socket:") {
+        return "socket".to_string();
+    }
+    if target.starts_with("anon_inode:[eventfd]") {
+        return "anon_inode:[eventfd]".to_string();
+    }
+    if target.starts_with("anon_inode:[timerfd]") {
+        return "anon_inode:[timerfd]".to_string();
+    }
+    if target.starts_with("anon_inode:[sync_file]") {
+        return "anon_inode:[sync_file]".to_string();
+    }
+    if target.starts_with("pipe:") {
+        return "pipe".to_string();
+    }
+    if target.starts_with("/dev/dri/") {
+        return "/dev/dri/*".to_string();
+    }
+    target.to_string()
+}
+
+fn log_fd_snapshot(context: &str) {
+    let Ok(entries) = fs::read_dir("/proc/self/fd") else {
+        warn!("Unable to read /proc/self/fd while handling {context}");
+        return;
+    };
+
+    let mut total = 0_usize;
+    let mut by_target: HashMap<String, usize> = HashMap::new();
+
+    for entry in entries.flatten() {
+        total = total.saturating_add(1);
+        if let Ok(target) = fs::read_link(entry.path()) {
+            let key = summarize_fd_target(&target.to_string_lossy());
+            *by_target.entry(key).or_insert(0) += 1;
+        }
+    }
+
+    let mut top = by_target.into_iter().collect::<Vec<_>>();
+    top.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    let top = top
+        .into_iter()
+        .take(8)
+        .map(|(k, v)| format!("{k}:{v}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    warn!("FD snapshot during {context}: total={total}, top=[{top}]");
+}
+
+fn attempt_fd_exhaustion_recovery(global_state: &mut GlobalState) {
+    warn!("Attempting one-shot recovery from FD exhaustion");
+
+    if let Some(global) = global_state.server_state.dmabuf_state.1.take() {
+        warn!("Disabling dmabuf global due to FD exhaustion");
+        global_state
+            .server_state
+            .dmabuf_state
+            .0
+            .disable_global::<GlobalState>(&global_state.server_state.display_handle, &global);
+    }
+
+    if !global_state.client_state.proxied_layer_surfaces.is_empty() {
+        for (_, _, _, _, _, _, _, _, egl_failures) in
+            &mut global_state.client_state.proxied_layer_surfaces
+        {
+            *egl_failures = PROXIED_LAYER_EGL_FAILURE_THRESHOLD;
+        }
+        let released = global_state.client_state.proxied_layer_surfaces.len();
+        global_state.client_state.proxied_layer_surfaces.clear();
+        warn!("Released {released} proxied layer EGL surfaces due to FD exhaustion");
+    }
+
+    let mut released_popup_surfaces = 0_usize;
+    for panel in &mut global_state.space.space_list {
+        panel.clear_autohover_timer();
+        released_popup_surfaces = released_popup_surfaces
+            .saturating_add(panel.popups.len())
+            .saturating_add(panel.subsurfaces.len())
+            .saturating_add(panel.overflow_popup.as_ref().map(|_| 1).unwrap_or(0));
+        panel.popups.clear();
+        panel.subsurfaces.clear();
+        panel.overflow_popup = None;
+    }
+    if released_popup_surfaces > 0 {
+        warn!(
+            "Released {released_popup_surfaces} popup/subsurface EGL surfaces due to FD exhaustion"
+        );
+    }
+}
 
 /// run the cosmic panel xdg wrapper with the provided config
 pub fn run(
@@ -108,6 +208,7 @@ pub fn run(
 
     let mut prev_dur = Duration::from_millis(16);
     let mut consecutive_dispatch_failures = 0_u32;
+    let mut attempted_fd_recovery = false;
     const MAX_CONSECUTIVE_DISPATCH_FAILURES: u32 = 8;
     loop {
         let iter_start = Instant::now();
@@ -125,8 +226,19 @@ pub fn run(
         {
             Ok(Ok(())) => {
                 consecutive_dispatch_failures = 0;
+                attempted_fd_recovery = false;
             }
             Ok(Err(err)) => {
+                if is_too_many_open_files(&err) {
+                    log_fd_snapshot("event-loop dispatch failure");
+                    if !attempted_fd_recovery {
+                        attempted_fd_recovery = true;
+                        attempt_fd_exhaustion_recovery(&mut global_state);
+                        consecutive_dispatch_failures = 0;
+                        std::thread::sleep(Duration::from_millis(250));
+                        continue;
+                    }
+                }
                 consecutive_dispatch_failures = consecutive_dispatch_failures.saturating_add(1);
                 tracing::error!(
                     "Event-loop dispatch failed (attempt {consecutive_dispatch_failures}/{MAX_CONSECUTIVE_DISPATCH_FAILURES}): {err:?}"
@@ -203,8 +315,19 @@ pub fn run(
         })) {
             Ok(Ok(())) => {
                 consecutive_dispatch_failures = 0;
+                attempted_fd_recovery = false;
             }
             Ok(Err(err)) => {
+                if is_too_many_open_files(&err) {
+                    log_fd_snapshot("server dispatch failure");
+                    if !attempted_fd_recovery {
+                        attempted_fd_recovery = true;
+                        attempt_fd_exhaustion_recovery(&mut global_state);
+                        consecutive_dispatch_failures = 0;
+                        std::thread::sleep(Duration::from_millis(250));
+                        continue;
+                    }
+                }
                 consecutive_dispatch_failures = consecutive_dispatch_failures.saturating_add(1);
                 tracing::error!(
                     "Server dispatch failed (attempt {consecutive_dispatch_failures}/{MAX_CONSECUTIVE_DISPATCH_FAILURES}): {err:?}"
