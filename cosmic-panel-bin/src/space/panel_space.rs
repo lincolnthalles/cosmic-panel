@@ -360,6 +360,7 @@ pub struct PanelSpace {
     pub(crate) notification_subscription: Option<ZcosmicOverlapNotificationV1>,
     pub(crate) overlap_notify: Option<OverlapNotifyV1>,
     pub(crate) hover_track: HoverTrack,
+    pub(crate) autohover_timer_token: Option<calloop::RegistrationToken>,
     pub(crate) start_show_instant: Rc<RefCell<Option<Instant>>>,
     pub shared: Rc<PanelSharedState>,
 }
@@ -433,6 +434,7 @@ impl PanelSpace {
             notification_subscription: None,
             overlap_notify: None,
             hover_track: HoverTrack::default(),
+            autohover_timer_token: None,
             transitioning: false,
             logical_layer_start_overlap: 0,
             logical_layer_end_overlap: 0,
@@ -447,6 +449,17 @@ impl PanelSpace {
 
     pub fn has_toplevel_overlap(&self) -> bool {
         self.toplevel_overlaps.iter().any(|t| !self.minimized_toplevels.contains(t))
+    }
+
+    pub(crate) fn clear_autohover_timer(&mut self) {
+        if let Some(token) = self.autohover_timer_token.take() {
+            self.shared.loop_handle.remove(token);
+        }
+    }
+
+    pub(crate) fn replace_autohover_timer(&mut self, token: calloop::RegistrationToken) {
+        self.clear_autohover_timer();
+        self.autohover_timer_token = Some(token);
     }
 
     pub fn crosswise(&self) -> i32 {

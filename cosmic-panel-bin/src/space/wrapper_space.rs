@@ -1139,11 +1139,19 @@ impl WrapperSpace for PanelSpace {
 
                         calloop::timer::TimeoutAction::Drop
                     };
+                    self.clear_autohover_timer();
                     if auto_hover_dur.as_millis() > 0 {
-                        _ = self.shared.loop_handle.insert_source(
+                        match self.shared.loop_handle.insert_source(
                             Timer::from_duration(auto_hover_dur),
                             move |_, _, data| on_autohover(data),
-                        );
+                        ) {
+                            Ok(token) => self.replace_autohover_timer(token),
+                            Err(err) => {
+                                tracing::error!(
+                                    "Failed to schedule overflow auto-hover timer: {err:?}"
+                                );
+                            },
+                        }
                     } else {
                         _ = self.shared.loop_handle.insert_idle(move |data| {
                             _ = on_autohover(data);
@@ -1320,18 +1328,24 @@ impl WrapperSpace for PanelSpace {
                     }
                     calloop::timer::TimeoutAction::Drop
                 };
+                self.clear_autohover_timer();
                 if auto_hover_dur.as_millis() > 0 {
-                    _ =
-                        self.shared.loop_handle.insert_source(
-                            Timer::from_duration(auto_hover_dur),
-                            move |_, _, data| on_autohover(data),
-                        );
+                    match self.shared.loop_handle.insert_source(
+                        Timer::from_duration(auto_hover_dur),
+                        move |_, _, data| on_autohover(data),
+                    ) {
+                        Ok(token) => self.replace_autohover_timer(token),
+                        Err(err) => {
+                            tracing::error!("Failed to schedule auto-hover timer: {err:?}");
+                        },
+                    }
                 } else {
                     _ = self.shared.loop_handle.insert_idle(move |data| {
                         _ = on_autohover(data);
                     });
                 }
             } else if hover_changed {
+                self.clear_autohover_timer();
                 self.hover_track.set_hover_id(None);
             }
         }
@@ -1418,6 +1432,7 @@ impl WrapperSpace for PanelSpace {
     }
 
     fn pointer_leave(&mut self, seat_name: &str, _s: Option<c_wl_surface::WlSurface>) {
+        self.clear_autohover_timer();
         self.hover_track.set_hover_id(None);
         self.s_hovered_surface.retain(|focus| focus.seat_name != seat_name);
     }
