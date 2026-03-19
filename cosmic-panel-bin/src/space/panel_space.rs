@@ -48,7 +48,7 @@ use smithay::backend::egl::ffi::egl::SwapInterval;
 use smithay::backend::egl::surface::EGLSurface;
 use smithay::backend::renderer::Bind;
 use smithay::backend::renderer::damage::OutputDamageTracker;
-use smithay::backend::renderer::gles::GlesRenderer;
+use smithay::backend::renderer::gles::{Capability, GlesRenderer};
 use smithay::desktop::utils::bbox_from_surface_tree;
 use smithay::desktop::{PopupManager, Space};
 use smithay::output::Output;
@@ -61,7 +61,7 @@ use smithay::wayland::fractional_scale::with_fractional_scale;
 use smithay::wayland::seat::WaylandFocus;
 use smithay::wayland::shell::xdg::{PopupSurface, PositionerState, ToplevelSurface};
 use tokio::sync::{mpsc, oneshot};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use wayland_egl::WlEglSurface;
 use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_v1::WpFractionalScaleV1;
 use wayland_protocols::wp::security_context::v1::client::wp_security_context_v1::WpSecurityContextV1;
@@ -1391,10 +1391,17 @@ impl PanelSpace {
                             unsafe {
                                 _ = egl_context.make_current();
 
-                                let capabilities =
+                                let mut capabilities =
                                     GlesRenderer::supported_capabilities(&egl_context)
                                         .expect("Failed to query EGL Context");
-                                // capabilities.retain(|cap| *cap != Capability::);
+                                // Some EGL stacks leak native-fence sync_file fds under export.
+                                // Prefer stability over explicit fence export on these systems.
+                                if capabilities.contains(&Capability::ExportFence) {
+                                    warn!(
+                                        "Disabling GLES ExportFence capability to avoid native-fence FD leaks"
+                                    );
+                                    capabilities.retain(|cap| *cap != Capability::ExportFence);
+                                }
                                 GlesRenderer::with_capabilities(egl_context, capabilities)
                                     .expect("Failed to create EGL Surface")
                             }
