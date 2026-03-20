@@ -68,6 +68,52 @@ mod malloc {
     }
 }
 
+#[cfg(unix)]
+fn raise_nofile_limit() {
+    let mut limits = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+
+    let get_result = unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut limits) };
+    if get_result != 0 {
+        let err = std::io::Error::last_os_error();
+        warn!(?err, "Failed to query RLIMIT_NOFILE");
+        return;
+    }
+
+    if limits.rlim_cur >= limits.rlim_max {
+        info!(
+            soft = limits.rlim_cur,
+            hard = limits.rlim_max,
+            "RLIMIT_NOFILE already at maximum",
+        );
+        return;
+    }
+
+    let updated = libc::rlimit {
+        rlim_cur: limits.rlim_max,
+        rlim_max: limits.rlim_max,
+    };
+    let set_result = unsafe { libc::setrlimit(libc::RLIMIT_NOFILE, &updated) };
+    if set_result != 0 {
+        let err = std::io::Error::last_os_error();
+        warn!(
+            ?err,
+            soft = limits.rlim_cur,
+            hard = limits.rlim_max,
+            "Failed to raise RLIMIT_NOFILE",
+        );
+        return;
+    }
+
+    info!(
+        soft = updated.rlim_cur,
+        hard = updated.rlim_max,
+        "Raised RLIMIT_NOFILE to hard limit",
+    );
+}
+
 fn main() -> Result<()> {
     // Prevents glibc from hoarding memory via memory fragmentation.
     #[cfg(target_env = "gnu")]
@@ -80,6 +126,9 @@ fn main() -> Result<()> {
     } else {
         tracing_subscriber::registry().with(fmt_layer).with(filter_layer).init();
     }
+
+    #[cfg(unix)]
+    raise_nofile_limit();
 
     log_panics::init();
 
