@@ -25,7 +25,7 @@ sctk = { package = "smithay-client-toolkit", version = "0.20.0", features = [
 cctk = { package = "cosmic-client-toolkit", git = "https://github.com/pop-os//cosmic-protocols" }
 
 [patch."https://github.com/smithay/smithay"]
-smithay = { path = "../smithay" }
+smithay = { git = "file:///home/lincoln/src/smithay", branch = "lincoln/native-fence-wait-fallback-20d2dac" }
 
 # [patch."https://github.com/pop-os/xdg-shell-wrapper"]
 # xdg-shell-wrapper-config = { path = "../xdg-shell-wrapper/xdg-shell-wrapper-config" }

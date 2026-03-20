@@ -3730,6 +3730,7 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 [[package]]
 name = "smithay"
 version = "0.7.0"
+source = "git+file:///home/lincoln/src/smithay?branch=lincoln%2Fnative-fence-wait-fallback-20d2dac#65c8a64542e174c1ddaca8fedebca7122e5a026d"
 dependencies = [
  "appendlist",
  "atomic_float",
