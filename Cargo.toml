@@ -24,6 +24,9 @@ sctk = { package = "smithay-client-toolkit", version = "0.20.0", features = [
 [patch."https://github.com/pop-os/cosmic-protocols"]
 cctk = { package = "cosmic-client-toolkit", git = "https://github.com/pop-os//cosmic-protocols" }
 
+[patch."https://github.com/smithay/smithay"]
+smithay = { path = "../smithay" }
+
 # [patch."https://github.com/pop-os/xdg-shell-wrapper"]
 # xdg-shell-wrapper-config = { path = "../xdg-shell-wrapper/xdg-shell-wrapper-config" }
 # xdg-shell-wrapper = { path = "../xdg-shell-wrapper" }
