@@ -15,7 +15,6 @@ smithay = { git = "https://github.com/smithay/smithay", default-features = false
     "use_system_lib",
     "desktop",
     "backend_egl",
-    "backend_drm",
     "renderer_gl",
 ], rev = "20d2dac" }
 # sctk = { git = "https://github.com/smithay/client-toolkit", package = "smithay-client-toolkit", features = ["calloop", "xkbcommon"] }

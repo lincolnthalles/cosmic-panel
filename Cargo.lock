@@ -3739,8 +3739,6 @@ dependencies = [
  "cgmath",
  "cursor-icon",
  "downcast-rs",
- "drm 0.14.2",
- "drm-ffi 0.9.1",
  "drm-fourcc",
  "errno",
  "gbm",
