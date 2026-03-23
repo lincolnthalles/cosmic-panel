@@ -3,12 +3,17 @@ use super::{CosmicMappedInternal, PopupMappedInternal};
 use crate::xdg_shell_wrapper::shared_state::GlobalState;
 
 use anyhow::bail;
+use smithay::input::Seat;
+use smithay::input::dnd::{DndFocus, Source};
 use smithay::input::keyboard::KeyboardTarget;
 use smithay::input::pointer::PointerTarget;
 use smithay::input::touch::TouchTarget;
+use smithay::reexports::wayland_server::DisplayHandle;
 use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
-use smithay::utils::IsAlive;
+use smithay::utils::{IsAlive, Logical, Point, Serial};
 use smithay::wayland::seat::WaylandFocus;
+use smithay::wayland::selection::data_device::WlOfferData;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SpaceTarget {
@@ -346,6 +351,64 @@ impl WaylandFocus for SpaceTarget {
         match self {
             SpaceTarget::Surface(s) => Some(std::borrow::Cow::Borrowed(s)),
             SpaceTarget::OverflowButton(b) => b.wl_surface(),
+        }
+    }
+}
+
+impl DndFocus<GlobalState> for SpaceTarget {
+    type OfferData<S: Source> = WlOfferData<S>;
+
+    fn enter<S: Source>(
+        &self,
+        data: &mut GlobalState,
+        dh: &DisplayHandle,
+        source: Arc<S>,
+        seat: &Seat<GlobalState>,
+        location: Point<f64, Logical>,
+        serial: &Serial,
+    ) -> Option<Self::OfferData<S>> {
+        match self {
+            SpaceTarget::Surface(surface) => <WlSurface as DndFocus<GlobalState>>::enter(
+                surface, data, dh, source, seat, location, serial,
+            ),
+            SpaceTarget::OverflowButton(_) => None,
+        }
+    }
+
+    fn motion<S: Source>(
+        &self,
+        data: &mut GlobalState,
+        offer: Option<&mut Self::OfferData<S>>,
+        seat: &Seat<GlobalState>,
+        location: Point<f64, Logical>,
+        time: u32,
+    ) {
+        if let SpaceTarget::Surface(surface) = self {
+            <WlSurface as DndFocus<GlobalState>>::motion(
+                surface, data, offer, seat, location, time,
+            );
+        }
+    }
+
+    fn leave<S: Source>(
+        &self,
+        data: &mut GlobalState,
+        offer: Option<&mut Self::OfferData<S>>,
+        seat: &Seat<GlobalState>,
+    ) {
+        if let SpaceTarget::Surface(surface) = self {
+            <WlSurface as DndFocus<GlobalState>>::leave(surface, data, offer, seat);
+        }
+    }
+
+    fn drop<S: Source>(
+        &self,
+        data: &mut GlobalState,
+        offer: Option<&mut Self::OfferData<S>>,
+        seat: &Seat<GlobalState>,
+    ) {
+        if let SpaceTarget::Surface(surface) = self {
+            <WlSurface as DndFocus<GlobalState>>::drop(surface, data, offer, seat);
         }
     }
 }

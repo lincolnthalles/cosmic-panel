@@ -1,4 +1,5 @@
 use smithay::wayland::viewporter::ViewportCachedState;
+use std::any::Any;
 use std::os::fd::OwnedFd;
 use std::sync::Mutex;
 
@@ -9,20 +10,21 @@ use sctk::reexports::client::protocol::wl_data_device_manager::DndAction as Clie
 use sctk::shm::multi::MultiPool;
 use smithay::backend::renderer::ImportDma;
 use smithay::backend::renderer::damage::OutputDamageTracker;
-use smithay::input::pointer::CursorImageAttributes;
+use smithay::input::dnd::{
+    DnDGrab, DndAction as ServerDndAction, DndGrabHandler, DndTarget, GrabType, Source,
+};
+use smithay::input::pointer::{CursorImageAttributes, Focus};
 use smithay::input::{Seat, SeatHandler, SeatState};
 use smithay::reexports::wayland_server::Resource;
-use smithay::reexports::wayland_server::protocol::wl_data_device_manager::DndAction;
 use smithay::reexports::wayland_server::protocol::wl_data_source::WlDataSource;
 use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
-use smithay::utils::Transform;
+use smithay::utils::{Logical, Point, Serial, Transform};
 use smithay::wayland::compositor::{SurfaceAttributes, with_states};
 use smithay::wayland::dmabuf::{DmabufHandler, ImportNotifier};
 use smithay::wayland::output::OutputHandler;
 use smithay::wayland::seat::WaylandFocus;
 use smithay::wayland::selection::data_device::{
-    ClientDndGrabHandler, DataDeviceHandler, ServerDndGrabHandler, set_data_device_focus,
-    with_source_metadata,
+    DataDeviceHandler, WaylandDndGrabHandler, set_data_device_focus,
 };
 use smithay::wayland::selection::primary_selection::{
     PrimarySelectionHandler, PrimarySelectionState, set_primary_focus,
@@ -189,34 +191,50 @@ impl DataDeviceHandler for GlobalState {
     }
 }
 
-impl ClientDndGrabHandler for GlobalState {
-    fn started(&mut self, source: Option<WlDataSource>, icon: Option<WlSurface>, seat: Seat<Self>) {
-        let seat = match self.server_state.seats.iter_mut().find(|s| s.server.seat == seat) {
-            Some(s) => s,
-            None => return,
+fn client_dnd_actions(actions: &[ServerDndAction]) -> ClientDndAction {
+    let mut client_actions = ClientDndAction::empty();
+    for action in actions {
+        match action {
+            ServerDndAction::Copy => client_actions |= ClientDndAction::Copy,
+            ServerDndAction::Move => client_actions |= ClientDndAction::Move,
+            ServerDndAction::Ask => client_actions |= ClientDndAction::Ask,
+            ServerDndAction::None => {},
+        }
+    }
+
+    client_actions
+}
+
+fn clone_wl_data_source<S: Source>(source: &S) -> Option<WlDataSource> {
+    (source as &dyn Any).downcast_ref::<WlDataSource>().cloned()
+}
+
+impl WaylandDndGrabHandler for GlobalState {
+    fn dnd_requested<S: Source>(
+        &mut self,
+        source: S,
+        icon: Option<WlSurface>,
+        seat: Seat<Self>,
+        serial: Serial,
+        type_: GrabType,
+    ) {
+        let Some(seat_idx) = self.server_state.seats.iter().position(|s| s.server.seat == seat)
+        else {
+            return;
         };
+        let seat_name = self.server_state.seats[seat_idx].name.clone();
 
-        if let Some(source) = source.as_ref() {
-            seat.client.next_dnd_offer_is_mine = true;
-            let metadata = with_source_metadata(source, |metadata| metadata.clone()).unwrap();
-            let mut actions = ClientDndAction::empty();
-            if metadata.dnd_action.contains(DndAction::Copy) {
-                actions |= ClientDndAction::Copy;
-            }
-            if metadata.dnd_action.contains(DndAction::Move) {
-                actions |= ClientDndAction::Move;
-            }
-            if metadata.dnd_action.contains(DndAction::Ask) {
-                actions |= ClientDndAction::Ask;
-            }
+        let wl_data_source = clone_wl_data_source(&source);
 
+        if let Some(metadata) = source.metadata() {
+            self.server_state.seats[seat_idx].client.next_dnd_offer_is_mine = true;
             let dnd_source = self.client_state.data_device_manager.create_drag_and_drop_source(
                 &self.client_state.queue_handle,
                 metadata.mime_types.iter().map(|m| m.as_str()).collect_vec(),
-                actions,
+                client_dnd_actions(&metadata.dnd_actions),
             );
             if let Some(focus) =
-                self.client_state.focused_surface.borrow().iter().find(|f| f.1 == seat.name)
+                self.client_state.focused_surface.borrow().iter().find(|f| f.1 == seat_name)
             {
                 let c_icon_surface = icon.as_ref().map(|_| {
                     self.client_state
@@ -224,16 +242,16 @@ impl ClientDndGrabHandler for GlobalState {
                         .create_surface(&self.client_state.queue_handle)
                 });
                 dnd_source.start_drag(
-                    &seat.client.data_device,
+                    &self.server_state.seats[seat_idx].client.data_device,
                     &focus.0,
                     c_icon_surface.as_ref(),
-                    seat.client.get_serial_of_last_seat_event(),
+                    self.server_state.seats[seat_idx].client.get_serial_of_last_seat_event(),
                 );
                 if let Some(client_surface) = c_icon_surface.as_ref() {
                     client_surface.frame(&self.client_state.queue_handle, client_surface.clone());
                     client_surface.commit();
 
-                    seat.client.dnd_icon = Some((
+                    self.server_state.seats[seat_idx].client.dnd_icon = Some((
                         None,
                         client_surface.clone(),
                         OutputDamageTracker::new((32, 32), 1., Transform::Flipped180),
@@ -242,75 +260,77 @@ impl ClientDndGrabHandler for GlobalState {
                     ));
                 }
             }
-            seat.client.dnd_source = Some(dnd_source);
+            self.server_state.seats[seat_idx].client.dnd_source = Some(dnd_source);
         }
 
-        seat.server.dnd_source = source;
-        seat.server.dnd_icon = icon;
-    }
+        self.server_state.seats[seat_idx].server.dnd_source = wl_data_source;
+        self.server_state.seats[seat_idx].server.dnd_icon = icon.clone();
+        let server_seat = self.server_state.seats[seat_idx].server.seat.clone();
 
-    fn dropped(&mut self, _: Option<WlSurface>, _: bool, seat: Seat<Self>) {
-        let seat = match self.server_state.seats.iter_mut().find(|s| s.server.seat == seat) {
-            Some(s) => s,
-            None => return,
-        };
-        // XXX is this correct?
-        seat.server.dnd_source = None;
-        seat.server.dnd_icon = None;
-        seat.client.dnd_icon = None;
-        seat.client.dnd_source = None;
+        match type_ {
+            GrabType::Pointer => {
+                let Some(pointer) = server_seat.get_pointer() else {
+                    warn!("Missing server pointer for client-initiated drag-and-drop");
+                    return;
+                };
+                let Some(start_data) = pointer.grab_start_data() else {
+                    warn!("Missing pointer grab start data for client-initiated drag-and-drop");
+                    return;
+                };
+                pointer.set_grab(
+                    self,
+                    DnDGrab::new_pointer(
+                        &self.server_state.display_handle,
+                        start_data,
+                        source,
+                        server_seat,
+                    ),
+                    serial,
+                    Focus::Keep,
+                );
+            },
+            GrabType::Touch => {
+                let Some(touch) = server_seat.get_touch() else {
+                    warn!("Missing server touch handle for client-initiated drag-and-drop");
+                    return;
+                };
+                let Some(start_data) = touch.grab_start_data() else {
+                    warn!("Missing touch grab start data for client-initiated drag-and-drop");
+                    return;
+                };
+                touch.set_grab(
+                    self,
+                    DnDGrab::new_touch(
+                        &self.server_state.display_handle,
+                        start_data,
+                        source,
+                        server_seat,
+                    ),
+                    serial,
+                );
+            },
+        }
     }
 }
-impl ServerDndGrabHandler for GlobalState {
-    fn send(&mut self, mime_type: String, fd: OwnedFd, seat: Seat<Self>) {
-        let seat = match self.server_state.seats.iter().find(|s| s.server.seat == seat) {
-            Some(s) => s,
-            None => return,
-        };
-        if let Some(offer) = seat.client.dnd_offer.as_ref() {
-            receive_to_fd(offer.inner(), mime_type, fd)
-        }
-    }
 
-    fn finished(&mut self, seat: Seat<Self>) {
+impl DndGrabHandler for GlobalState {
+    fn dropped(
+        &mut self,
+        _target: Option<DndTarget<'_, Self>>,
+        _validated: bool,
+        seat: Seat<Self>,
+        _location: Point<f64, Logical>,
+    ) {
         let seat = match self.server_state.seats.iter_mut().find(|s| s.server.seat == seat) {
             Some(s) => s,
             None => return,
         };
-        if let Some(offer) = seat.client.dnd_offer.take() {
-            offer.finish();
-        }
-    }
 
-    fn cancelled(&mut self, seat: Seat<Self>) {
-        let seat = match self.server_state.seats.iter_mut().find(|s| s.server.seat == seat) {
-            Some(s) => s,
-            None => return,
-        };
-        if let Some(offer) = seat.client.dnd_offer.take() {
-            offer.destroy();
-        }
-    }
-
-    fn action(&mut self, action: DndAction, seat: Seat<Self>) {
-        let seat = match self.server_state.seats.iter().find(|s| s.server.seat == seat) {
-            Some(s) => s,
-            None => return,
-        };
-        let mut c_action = ClientDndAction::empty();
-        if action.contains(DndAction::Copy) {
-            c_action |= ClientDndAction::Copy;
-        }
-        if action.contains(DndAction::Move) {
-            c_action |= ClientDndAction::Move;
-        }
-        if action.contains(DndAction::Ask) {
-            c_action |= ClientDndAction::Ask;
-        }
-
-        if let Some(offer) = seat.client.dnd_offer.as_ref() {
-            offer.set_actions(c_action, c_action)
-        }
+        seat.server.dnd_source = None;
+        seat.server.dnd_icon = None;
+        seat.client.dnd_offer = None;
+        seat.client.dnd_icon = None;
+        seat.client.dnd_source = None;
     }
 }
 

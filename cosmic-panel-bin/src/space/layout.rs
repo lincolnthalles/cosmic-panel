@@ -26,10 +26,11 @@ use sctk::shell::WaylandSurface;
 use smithay::desktop::space::SpaceElement;
 use smithay::desktop::{Space, Window};
 use smithay::reexports::wayland_server::Resource;
-use smithay::utils::{IsAlive, Physical, Rectangle, Size};
+use smithay::utils::{IsAlive, Logical, Physical, Rectangle, Size};
 use smithay::wayland::compositor::with_states;
 use smithay::wayland::fractional_scale::with_fractional_scale;
 use smithay::wayland::seat::WaylandFocus;
+use smithay::wayland::shell::xdg::ToplevelSurface;
 use tracing::info;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -285,9 +286,11 @@ impl PanelSpace {
         ) -> (Alignment, usize, i32, i32, i32, i32) {
             let (mut size, mut suggested_bounds) = w
                 .toplevel()
-                .map(|t| {
-                    let s = t.current_state();
-                    (s.size.unwrap_or_default(), s.bounds.unwrap_or_default())
+                .map(|_| {
+                    (
+                        toplevel_size(w.toplevel()).unwrap_or_default(),
+                        toplevel_bounds(w.toplevel()).unwrap_or_default(),
+                    )
                 })
                 .unwrap_or_else(|| {
                     if let CosmicMappedInternal::Spacer(s) = w {
@@ -648,14 +651,13 @@ impl PanelSpace {
          -> f64 {
             for (_, w, minimize_priority, padding_shrinkable) in windows {
                 let mut size = w.geometry().size.to_f64();
-                let configured_size =
-                    w.toplevel().and_then(|t| t.current_state().bounds).unwrap_or_else(|| {
-                        if let CosmicMappedInternal::Spacer(s) = w {
-                            s.bbox().size
-                        } else {
-                            w.geometry().size
-                        }
-                    });
+                let configured_size = toplevel_bounds(w.toplevel()).unwrap_or_else(|| {
+                    if let CosmicMappedInternal::Spacer(s) = w {
+                        s.bbox().size
+                    } else {
+                        w.geometry().size
+                    }
+                });
 
                 if configured_size.w != 0 {
                     size.w = size.w.min(configured_size.w as f64);
@@ -1211,13 +1213,8 @@ impl PanelSpace {
             if overflow == 0 {
                 break;
             }
-            let suggested_bounds = w
-                .toplevel()
-                .map(|t| {
-                    let s = t.current_state();
-                    s.bounds.unwrap_or_default()
-                })
-                .unwrap();
+            let suggested_bounds =
+                w.toplevel().map(|_| toplevel_bounds(w.toplevel()).unwrap_or_default()).unwrap();
 
             let mut size = w.geometry().size.to_f64();
             if size.w < 1. {
@@ -1226,11 +1223,7 @@ impl PanelSpace {
             if size.h < 1. {
                 size.h = 1.;
             }
-            let configured_size = w
-                .toplevel()
-                .and_then(|t| t.current_state().size)
-                .map(|s| s.to_f64())
-                .unwrap_or(size);
+            let configured_size = toplevel_size(w.toplevel()).map(|s| s.to_f64()).unwrap_or(size);
             if configured_size.w >= 1. {
                 size.w = size.w.min(configured_size.w);
             }
@@ -1743,6 +1736,14 @@ impl PanelSpace {
     }
 }
 
+fn toplevel_size(toplevel: Option<&ToplevelSurface>) -> Option<Size<i32, Logical>> {
+    toplevel.and_then(|t| t.with_committed_state(|state| state.and_then(|state| state.size)))
+}
+
+fn toplevel_bounds(toplevel: Option<&ToplevelSurface>) -> Option<Size<i32, Logical>> {
+    toplevel.and_then(|t| t.with_committed_state(|state| state.and_then(|state| state.bounds)))
+}
+
 // if middle collides with left or right, it must be constrained
 // middle cant be constrained below 1/3 of the size of the output.
 // If the left or right extends past the min(1/3, middle), then the left or
@@ -1801,18 +1802,19 @@ impl OverflowClientPartition {
             .iter()
             .filter(|ShrinkableClient { window: w, .. }| {
                 w.toplevel().is_some_and(|t| {
-                    let state = t.current_state();
+                    let bounds =
+                        t.with_committed_state(|state| state.and_then(|state| state.bounds));
                     let cur_size = w.geometry().size;
                     if is_horizontal {
-                        state.bounds.is_none()
-                            || state.bounds.is_some_and(|s| {
+                        bounds.is_none()
+                            || bounds.is_some_and(|s| {
                                 s.w != 0
                                     || cur_size.w.saturating_sub((s.w as f64 * scale) as i32)
                                         > self.suggested_size as i32
                             })
                     } else {
-                        state.bounds.is_none()
-                            || state.bounds.is_some_and(|s| {
+                        bounds.is_none()
+                            || bounds.is_some_and(|s| {
                                 s.h != 0
                                     || cur_size.h.saturating_sub((s.h as f64 * scale) as i32)
                                         > self.suggested_size as i32
@@ -1828,11 +1830,12 @@ impl OverflowClientPartition {
         self.shrinkable.is_empty() || {
             self.shrinkable.iter().all(|ShrinkableClient { window: w, .. }| {
                 w.toplevel().is_some_and(|t| {
-                    let state = t.current_state();
+                    let bounds =
+                        t.with_committed_state(|state| state.and_then(|state| state.bounds));
                     let cur_size = w.geometry().size;
                     if is_horizontal {
-                        state.bounds.is_none()
-                            || state.bounds.is_some_and(|s| {
+                        bounds.is_none()
+                            || bounds.is_some_and(|s| {
                                 s.w == 0
                                     || cur_size
                                         .w
@@ -1840,8 +1843,8 @@ impl OverflowClientPartition {
                                         > self.suggested_size as i32
                             })
                     } else {
-                        state.bounds.is_none()
-                            || state.bounds.is_some_and(|s| {
+                        bounds.is_none()
+                            || bounds.is_some_and(|s| {
                                 s.h == 0
                                     || cur_size
                                         .h

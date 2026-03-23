@@ -94,7 +94,10 @@ where
         let location = space.element_location(e)?;
         let mut bbox = e.geometry().to_f64();
         bbox.loc += location.to_f64();
-        if let Some(configured_size) = e.toplevel().and_then(|t| t.current_state().size) {
+        if let Some(configured_size) = e
+            .toplevel()
+            .and_then(|t| t.with_committed_state(|state| state.and_then(|state| state.size)))
+        {
             if configured_size.w > 0 {
                 bbox.size.w = bbox.size.w.min(configured_size.w as f64);
             }
@@ -708,10 +711,13 @@ impl WrapperSpace for PanelSpace {
                                     return;
                                 };
                                 if let Err(err) = pman
-                                    .update_process_env(&key, vec![(
-                                        "COSMIC_NOTIFICATIONS".to_string(),
-                                        fd.as_raw_fd().to_string(),
-                                    )])
+                                    .update_process_env(
+                                        &key,
+                                        vec![(
+                                            "COSMIC_NOTIFICATIONS".to_string(),
+                                            fd.as_raw_fd().to_string(),
+                                        )],
+                                    )
                                     .await
                                 {
                                     error!("Failed to update process env: {}", err);
@@ -1095,7 +1101,9 @@ impl WrapperSpace for PanelSpace {
                             let Some(layer_surface) =
                                 space.layer.as_ref().map(|layer| layer.wl_surface().clone())
                             else {
-                                tracing::warn!("Skipping overflow auto-hover click without layer surface");
+                                tracing::warn!(
+                                    "Skipping overflow auto-hover click without layer surface"
+                                );
                                 return calloop::timer::TimeoutAction::Drop;
                             };
                             // place in center
@@ -1160,10 +1168,10 @@ impl WrapperSpace for PanelSpace {
                 }
             } else if hover_changed
                 && ((prev_popup_client
-                .as_ref()
-                .zip(cur_client_hover_id.as_ref())
-                .is_some_and(|(a, b)| &HoverId::Client(a.clone()) != b))
-                || self.overflow_popup.is_some())
+                    .as_ref()
+                    .zip(cur_client_hover_id.as_ref())
+                    .is_some_and(|(a, b)| &HoverId::Client(a.clone()) != b))
+                    || self.overflow_popup.is_some())
                 && matches!(cur_client_hover_id, Some(HoverId::Client(_)))
             {
                 self.hover_track.set_hover_id(cur_client_hover_id.clone());
@@ -1192,15 +1200,21 @@ impl WrapperSpace for PanelSpace {
 
                         // send press to new client if it hover flag is set
                         let Ok(left_guard) = space.clients_left.lock() else {
-                            tracing::warn!("Skipping auto-hover click due poisoned left client lock");
+                            tracing::warn!(
+                                "Skipping auto-hover click due poisoned left client lock"
+                            );
                             return calloop::timer::TimeoutAction::Drop;
                         };
                         let Ok(center_guard) = space.clients_center.lock() else {
-                            tracing::warn!("Skipping auto-hover click due poisoned center client lock");
+                            tracing::warn!(
+                                "Skipping auto-hover click due poisoned center client lock"
+                            );
                             return calloop::timer::TimeoutAction::Drop;
                         };
                         let Ok(right_guard) = space.clients_right.lock() else {
-                            tracing::warn!("Skipping auto-hover click due poisoned right client lock");
+                            tracing::warn!(
+                                "Skipping auto-hover click due poisoned right client lock"
+                            );
                             return calloop::timer::TimeoutAction::Drop;
                         };
                         let client = left_guard
@@ -1235,7 +1249,8 @@ impl WrapperSpace for PanelSpace {
                             .zip(hover_geo);
                         if let Some(((auto_anchor, relative_loc), geo)) = client {
                             let mut p = (x, y);
-                            let effective_anchor = match (auto_anchor, space.config.is_horizontal()) {
+                            let effective_anchor = match (auto_anchor, space.config.is_horizontal())
+                            {
                                 (AppletAutoClickAnchor::Start, true) => AppletAutoClickAnchor::Left,
                                 (AppletAutoClickAnchor::Start, false) => AppletAutoClickAnchor::Top,
                                 (AppletAutoClickAnchor::End, true) => AppletAutoClickAnchor::Right,
@@ -1330,10 +1345,12 @@ impl WrapperSpace for PanelSpace {
                 };
                 self.clear_autohover_timer();
                 if auto_hover_dur.as_millis() > 0 {
-                    match self.shared.loop_handle.insert_source(
-                        Timer::from_duration(auto_hover_dur),
-                        move |_, _, data| on_autohover(data),
-                    ) {
+                    match self
+                        .shared
+                        .loop_handle
+                        .insert_source(Timer::from_duration(auto_hover_dur), move |_, _, data| {
+                            on_autohover(data)
+                        }) {
                         Ok(token) => self.replace_autohover_timer(token),
                         Err(err) => {
                             tracing::error!("Failed to schedule auto-hover timer: {err:?}");
